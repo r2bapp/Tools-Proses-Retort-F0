@@ -9,8 +9,6 @@ from PIL import Image
 import base64
 import os
 
-import streamlit as st
-
 # ----------------------------
 # KONFIGURASI
 # ----------------------------
