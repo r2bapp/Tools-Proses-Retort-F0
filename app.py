@@ -9,32 +9,6 @@ import base64
 from PIL import Image
 import os
 
-def init_db():
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS pelanggan (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nama TEXT,
-            tanggal TEXT,
-            sesi TEXT,
-            batch TEXT,
-            total_waktu INTEGER,
-            jenis_produk TEXT,
-            jumlah_awal INTEGER,
-            jumlah_akhir INTEGER,
-            petugas TEXT,
-            paraf TEXT
-        )
-    """)
-    # Tambahkan juga pembuatan tabel lainnya...
-    conn.commit()
-    conn.close()
-
-# Panggil fungsi ini saat app diload
-init_db()
-
 DB_PATH = "/mnt/data/retort_data.db"
 LOGO_PATH = "R2B.png"
 
@@ -106,6 +80,32 @@ def save_f0(pelanggan_id, f0):
     conn.commit()
     conn.close()
     return status
+
+def init_db():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS pelanggan (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nama TEXT,
+            tanggal TEXT,
+            sesi TEXT,
+            batch TEXT,
+            total_waktu INTEGER,
+            jenis_produk TEXT,
+            jumlah_awal INTEGER,
+            jumlah_akhir INTEGER,
+            petugas TEXT,
+            paraf TEXT
+        )
+    """)
+    # Tambahkan juga pembuatan tabel lainnya...
+    conn.commit()
+    conn.close()
+
+# Panggil fungsi ini saat app diload
+init_db()
 
 def export_csv(pelanggan_id):
     conn = sqlite3.connect(DB_PATH)
