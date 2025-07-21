@@ -138,42 +138,47 @@ if st.session_state.logged_in:
     st.image(LOGO_PATH, width=120)
     st.title("📋 Tools Input & F0 Retort | Rumah Retort Bersama")
 
-    with st.form("form_input"):
-        st.header("1️⃣ Data Pelanggan")
-        nama = st.text_input("Nama Pelanggan")
-        tanggal = st.date_input("Tanggal Proses", value=datetime.date.today())
-        no_sesi = st.text_input("No Sesi")
-        no_batch = st.text_input("No Batch")
-        total_waktu = st.number_input("Total Waktu Retort (menit)", 0, 300)
-        jenis_produk = st.text_area("Jenis Produk (bisa lebih dari satu)")
-        jumlah_awal = st.number_input("Jumlah Produk Awal", 0)
-        jumlah_akhir = st.number_input("Jumlah Produk Akhir", 0)
-        basket1 = st.number_input("Jumlah Basket 1", 0, 100)
-        basket2 = st.number_input("Jumlah Basket 2", 0, 100)
-        basket3 = st.number_input("Jumlah Basket 3", 0, 100)
-        petugas = st.text_input("Petugas")
-        paraf = st.text_input("Paraf")
+   # Ambil input dari form pelanggan
+with st.form("form_input"):
+    st.header("1️⃣ Data Pelanggan")
+    nama = st.text_input("Nama Pelanggan")
+    tanggal = st.date_input("Tanggal Proses", value=datetime.date.today())
+    no_sesi = st.text_input("No Sesi")
+    no_batch = st.text_input("No Batch")
+    total_waktu = st.number_input("Total Waktu Retort (menit)", 0, 300)
+    jenis_produk = st.text_area("Jenis Produk (bisa lebih dari satu)")
+    jumlah_awal = st.number_input("Jumlah Produk Awal", 0)
+    jumlah_akhir = st.number_input("Jumlah Produk Akhir", 0)
+    
+    # ✅ Input tambahan untuk basket
+    basket1 = st.number_input("Jumlah Basket 1", 0, 100)
+    basket2 = st.number_input("Jumlah Basket 2", 0, 100)
+    basket3 = st.number_input("Jumlah Basket 3", 0, 100)
 
-        st.header("2️⃣ Input Parameter Proses (60 Menit)")
-        df_input = pd.DataFrame({
-            'menit': list(range(1, 61)),
-            'suhu': [0.0]*60,
-            'tekanan': [0.0]*60,
-            'keterangan': ['']*60
-        })
-        edited_df = st.data_editor(df_input, num_rows="fixed")
+    petugas = st.text_input("Petugas")
+    paraf = st.text_input("Paraf")
 
-        submitted = st.form_submit_button("💾 Simpan & Hitung F0")
+    submitted = st.form_submit_button("Simpan Data & Mulai Input Parameter")
 
     if submitted:
-        pelanggan_tuple = (nama, str(tanggal), no_sesi, no_batch, total_waktu,
-                        jenis_produk, jumlah_awal, jumlah_akhir, basket1, basket2, basket3, petugas, paraf)
+        pelanggan_tuple = (
+            nama,
+            str(tanggal),
+            no_sesi,
+            no_batch,
+            total_waktu,
+            jenis_produk,
+            jumlah_awal,
+            jumlah_akhir,
+            basket1,
+            basket2,
+            basket3,
+            petugas,
+            paraf
+        )
+
         pelanggan_id = save_data_pelanggan(pelanggan_tuple)
-
-        df_hasil, total_f0 = calculate_f0(edited_df)
-        save_f0_data(pelanggan_id, df_hasil)
-
-        st.success(f"Data berhasil disimpan. Nilai Total F0: {total_f0}")
+        st.success("✅ Data pelanggan berhasil disimpan.")
 
         csv = df_hasil.to_csv(index=False).encode('utf-8')
         pdf_data = export_pdf(pelanggan_tuple, df_hasil)
