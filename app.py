@@ -29,7 +29,7 @@ def init_db():
             nama TEXT, tanggal TEXT, sesi TEXT, batch TEXT,
             total_waktu INTEGER, jenis_produk TEXT,
             jumlah_awal INTEGER, jumlah_akhir INTEGER,
-            petugas TEXT, paraf SIGN
+            petugas TEXT, paraf TEXT
         )
     """)
     c.execute("""
@@ -70,7 +70,7 @@ def save_f0_data(pelanggan_id, df):
     for _, row in df.iterrows():
         c.execute("""
             INSERT INTO f0_data (pelanggan_id, menit, suhu, tekanan, keterangan, f0)
-            VALUES (?, ?, ?, O.1, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?)
         """, (pelanggan_id, row['menit'], row['suhu'], row['tekanan'], row['keterangan'], row['f0']))
     conn.commit()
     conn.close()
@@ -132,7 +132,19 @@ with st.form("form_input"):
         'tekanan': [0]*60,
         'keterangan': ['']*60
     })
-    edited_df = st.data_editor(df_input, num_rows="fixed")
+    edited_df = st.data_editor(
+    df_input,
+    num_rows="fixed",
+    column_config={
+        "suhu": st.column_config.NumberColumn(
+            "Suhu (°C)", step=0.1, min_value=0.0
+        ),
+        "tekanan": st.column_config.NumberColumn(
+            "Tekanan (kg/cm²)", step=0.1, min_value=0.0
+        ),
+        "keterangan": st.column_config.TextColumn("Keterangan"),
+    }
+)
 
     submitted = st.form_submit_button("💾 Simpan & Hitung F0")
 
