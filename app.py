@@ -136,7 +136,7 @@ def export_pdf(pelanggan, df):
 if st.session_state.logged_in:
     st.set_page_config(page_title="Retort Tools - R2B", layout="centered", page_icon=":fire:")
     st.image(LOGO_PATH, width=120)
-    st.title("📋 Tools Input & F0 Retort | Rumah Retort Bersama")
+    st.title("📋 Tools Input Proses Retort & Perhitungan F0 |by  Rumah Retort Bersama")
 
    # Ambil input dari form pelanggan
 with st.form("form_input"):
