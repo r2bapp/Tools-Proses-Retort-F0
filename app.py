@@ -140,7 +140,7 @@ with st.form("form_input"):
             "Suhu (°C)", step=0.1, min_value=0.0
         ),
         "tekanan": st.column_config.NumberColumn(
-            "Tekanan (kg/cm²)", step=0.1, min_value=0.0
+            "Tekanan (kg/cm²)", step=0.1, min_value=0.1
         ),
         "keterangan": st.column_config.TextColumn("Keterangan"),
     }
