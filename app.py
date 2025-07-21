@@ -122,6 +122,9 @@ with st.form("form_input"):
     jenis_produk = st.text_area("Jenis Produk (bisa lebih dari satu)")
     jumlah_awal = st.number_input("Jumlah Produk Awal", 0)
     jumlah_akhir = st.number_input("Jumlah Produk Akhir", 0)
+    basket1 = st.number_input("Jumlah Basket 1", 0, 100)
+    basket2 = st.number_input("Jumlah Basket 2", 0, 100)
+    basket3 = st.number_input("Jumlah Basket 3", 0, 100)
     petugas = st.text_input("Petugas")
     paraf = st.text_input("Paraf")
 
