@@ -53,7 +53,6 @@ if not st.session_state.logged_in:
 else:
     main_app()
 
-
 # ----------------------------
 # KONFIGURASI
 # ----------------------------
@@ -61,7 +60,6 @@ DB_PATH = "data_retort.db"
 LOGO_PATH = "R2B.png"
 F0_REFERENCE_TEMP = 121.1
 Z_VALUE = 10
-AUTHORIZED_USERS = ["bagoes", "dimas", "iwan"]
 
 # ----------------------------
 # INISIALISASI DATABASE
