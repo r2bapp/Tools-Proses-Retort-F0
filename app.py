@@ -29,7 +29,7 @@ def init_db():
             nama TEXT, tanggal TEXT, sesi TEXT, batch TEXT,
             total_waktu INTEGER, jenis_produk TEXT,
             jumlah_awal INTEGER, jumlah_akhir INTEGER,
-            petugas TEXT, paraf TEXT
+            petugas TEXT, paraf SIGN
         )
     """)
     c.execute("""
@@ -70,7 +70,7 @@ def save_f0_data(pelanggan_id, df):
     for _, row in df.iterrows():
         c.execute("""
             INSERT INTO f0_data (pelanggan_id, menit, suhu, tekanan, keterangan, f0)
-            VALUES (?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, O.1, ?, ?)
         """, (pelanggan_id, row['menit'], row['suhu'], row['tekanan'], row['keterangan'], row['f0']))
     conn.commit()
     conn.close()
