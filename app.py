@@ -18,6 +18,29 @@ F0_REFERENCE_TEMP = 121.1
 Z_VALUE = 10
 
 # ----------------------------
+# SISTEM LOGIN SEDERHANA BERDASARKAN NAMA
+# ----------------------------
+if 'logged_in' not in st.session_state:
+    st.session_state.logged_in = False
+if 'username' not in st.session_state:
+    st.session_state.username = ""
+
+if not st.session_state.logged_in:
+    st.title("🔐 Login Pengguna")
+    username_input = st.text_input("Masukkan nama pengguna (bagoes / dimas / iwan)")
+    login_button = st.button("Login")
+
+    if login_button:
+        if username_input.lower() in AUTHORIZED_USERS:
+            st.session_state.logged_in = True
+            st.session_state.username = username_input.lower()
+            st.experimental_rerun()
+        else:
+            st.error("Nama tidak dikenali. Silakan coba lagi.")
+else:
+    st.sidebar.success(f"👋 Selamat datang, {st.session_state.username.capitalize()}")
+
+# ----------------------------
 # INISIALISASI DATABASE
 # ----------------------------
 def init_db():
