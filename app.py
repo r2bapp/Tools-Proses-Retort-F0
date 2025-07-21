@@ -9,6 +9,51 @@ from PIL import Image
 import base64
 import os
 
+import streamlit as st
+
+# ----------------------------
+# KONFIGURASI LOGIN
+# ----------------------------
+AUTHORIZED_USERS = ["bagoes", "dimas", "iwan"]
+
+# Inisialisasi session state untuk login
+if 'logged_in' not in st.session_state:
+    st.session_state.logged_in = False
+if 'user_name' not in st.session_state:
+    st.session_state.user_name = ""
+
+def login_page():
+    st.image("R2B.png", width=150)
+    st.title("Login - R2B Retort Tools")
+    st.write("Silakan masukkan nama Anda untuk mengakses aplikasi.")
+
+    name = st.text_input("Nama", placeholder="Contoh: bagoes").strip().lower()
+    login_btn = st.button("Login")
+
+    if login_btn:
+        if name in AUTHORIZED_USERS:
+            st.session_state.logged_in = True
+            st.session_state.user_name = name.capitalize()
+            st.success(f"Selamat datang, {st.session_state.user_name}!")
+            st.experimental_rerun()
+        else:
+            st.error("Nama tidak terdaftar. Silakan coba lagi.")
+
+def main_app():
+    st.sidebar.success(f"Login sebagai: {st.session_state.user_name}")
+    st.title("📊 R2B - Tools Proses Retort & F0 Otomatis")
+    # Aplikasi utama dimulai di sini
+    # (form input, grafik, download, dsb.)
+
+# ----------------------------
+# Routing antara login dan aplikasi utama
+# ----------------------------
+if not st.session_state.logged_in:
+    login_page()
+else:
+    main_app()
+
+
 # ----------------------------
 # KONFIGURASI
 # ----------------------------
@@ -17,29 +62,6 @@ LOGO_PATH = "R2B.png"
 F0_REFERENCE_TEMP = 121.1
 Z_VALUE = 10
 AUTHORIZED_USERS = ["bagoes", "dimas", "iwan"]
-
-# ----------------------------
-# SISTEM LOGIN SEDERHANA BERDASARKAN NAMA
-# ----------------------------
-if 'logged_in' not in st.session_state:
-    st.session_state.logged_in = False
-if 'username' not in st.session_state:
-    st.session_state.username = ""
-
-if not st.session_state.logged_in:
-    st.title("🔐 Login Pengguna")
-    username_input = st.text_input("Masukkan nama pengguna (bagoes / dimas / iwan)")
-    login_button = st.button("Login")
-
-    if login_button:
-        if username_input.lower() in AUTHORIZED_USERS:
-            st.session_state.logged_in = True
-            st.session_state.username = username_input.lower()
-            st.experimental_rerun()
-        else:
-            st.error("Nama tidak dikenali. Silakan coba lagi.")
-else:
-    st.sidebar.success(f"👋 Selamat datang, {st.session_state.username.capitalize()}")
 
 # ----------------------------
 # INISIALISASI DATABASE
