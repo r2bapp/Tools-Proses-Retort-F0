@@ -36,8 +36,8 @@ if not st.session_state.logged_in:
             st.session_state.logged_in = True
             st.session_state.username = username_input.lower()
         st.session_state.logged_in = True
-st.success(f"Selamat datang, {username.capitalize()}! Anda berhasil login.")
-st.stop()
+        st.success(f"Selamat datang, {username.capitalize()}! Anda berhasil login.")
+        st.stop()
 
         else:
             st.error("Nama tidak dikenali. Silakan coba lagi.")
