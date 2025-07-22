@@ -18,26 +18,30 @@ F0_REFERENCE_TEMP = 121.1
 Z_VALUE = 10
 AUTHORIZED_USERS = ["bagoes", "dimas", "iwan"]
 
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
+# ----------------------------
+# HALAMAN LOGIN
+# ----------------------------
+def show_login():
+    if "logged_in" not in st.session_state:
+        st.session_state.logged_in = False
 
-if not st.session_state.logged_in:
-    st.image(LOGO_PATH, width=200)
-    st.title("Login Aplikasi Proses Retort R2B")
-    username = st.text_input("Masukkan Nama (bagoes / dimas / iwan)")
+    if not st.session_state.logged_in:
+        st.image(LOGO_PATH, width=200)
+        st.title("Login Aplikasi Proses Retort R2B")
+        username = st.text_input("Masukkan Nama (bagoes / dimas / iwan)")
 
-    if st.button("Login"):
-        if username.strip().lower() in AUTHORIZED_USERS:
-            st.session_state.logged_in = True
-            st.success(f"Selamat datang, {username.capitalize()}! Anda berhasil login.")
-            st.stop()
-        else:
-            st.error("Nama tidak dikenal. Silakan coba lagi.")
-else:
-    # Mulai aplikasi utama setelah login
-    st.image(LOGO_PATH, width=200)
-    st.title("📊 Aplikasi Proses Retort R2B")
+        if st.button("Login"):
+            if username.strip().lower() in AUTHORIZED_USERS:
+                st.session_state.logged_in = True
+                st.success(f"Selamat datang, {username.capitalize()}! Anda berhasil login.")
+                st.experimental_rerun()
+            else:
+                st.error("Nama tidak dikenal. Silakan coba lagi.")
+        return False
+    return True
 
+if not show_login():
+    st.stop()
 
 # ----------------------------
 # INISIALISASI DATABASE
@@ -131,75 +135,75 @@ def export_pdf(pelanggan, df):
 # ----------------------------
 # UI UTAMA
 # ----------------------------
-if st.session_state.logged_in:
-    st.set_page_config(page_title="Retort Tools - R2B", layout="centered", page_icon=":fire:")
-    st.image(LOGO_PATH, width=120)
-    st.title("📋 Tools Input & F0 Retort | Rumah Retort Bersama")
+st.set_page_config(page_title="Retort Tools - R2B", layout="centered", page_icon=":fire:")
+st.image(LOGO_PATH, width=120)
+st.title("📋 Tools Input & F0 Retort | Rumah Retort Bersama")
 
-    with st.form("form_input"):
-        st.header("1️⃣ Data Pelanggan")
-        nama = st.text_input("Nama Pelanggan")
-        tanggal = st.date_input("Tanggal Proses", value=datetime.date.today())
-        no_sesi = st.text_input("No Sesi")
-        no_batch = st.text_input("No Batch")
-        total_waktu = st.number_input("Total Waktu Retort (menit)", 0, 300)
-        jenis_produk = st.text_area("Jenis Produk (bisa lebih dari satu)")
-        jumlah_awal = st.number_input("Jumlah Produk Awal", 0)
-        jumlah_akhir = st.number_input("Jumlah Produk Akhir", 0)
-        basket1 = st.number_input("Jumlah Basket 1", 0, 100)
-        basket2 = st.number_input("Jumlah Basket 2", 0, 100)
-        basket3 = st.number_input("Jumlah Basket 3", 0, 100)
-        petugas = st.text_input("Petugas")
-        paraf = st.text_input("Paraf")
+with st.form("form_input"):
+    st.header("1️⃣ Data Pelanggan")
+    nama = st.text_input("Nama Pelanggan")
+    tanggal = st.date_input("Tanggal Proses", value=datetime.date.today())
+    no_sesi = st.text_input("No Sesi")
+    no_batch = st.text_input("No Batch")
+    jenis_produk = st.text_area("Jenis Produk (bisa lebih dari satu)")
+    jumlah_awal = st.number_input("Jumlah Produk Awal", 0)
+    basket1 = st.number_input("Jumlah Basket 1", 0, 100)
+    basket2 = st.number_input("Jumlah Basket 2", 0, 100)
+    basket3 = st.number_input("Jumlah Basket 3", 0, 100)
+    petugas = st.text_input("Petugas")
+    paraf = st.text_input("Paraf")
 
-        st.header("2️⃣ Input Parameter Proses (60 Menit)")
-        df_input = pd.DataFrame({
-            'menit': list(range(1, 61)),
-            'suhu': [0.0]*60,
-            'tekanan': [0.0]*60,
-            'keterangan': ['']*60
-        })
-        edited_df = st.data_editor(df_input, num_rows="fixed")
+    st.header("2️⃣ Input Parameter Proses (60 Menit)")
+    df_input = pd.DataFrame({
+        'menit': list(range(1, 61)),
+        'suhu': [0.0]*60,
+        'tekanan': [0.0]*60,
+        'keterangan': ['']*60
+    })
+    edited_df = st.data_editor(df_input, num_rows="fixed")
 
-        submitted = st.form_submit_button("💾 Simpan & Hitung F0")
+    jumlah_akhir = st.number_input("Jumlah Produk Akhir (Input Setelah Proses)", 0)
 
-    if submitted:
-        pelanggan_tuple = (nama, str(tanggal), no_sesi, no_batch, total_waktu,
-                        jenis_produk, jumlah_awal, jumlah_akhir, basket1, basket2, basket3, petugas, paraf)
-        pelanggan_id = save_data_pelanggan(pelanggan_tuple)
+    submitted = st.form_submit_button("💾 Simpan & Hitung F0")
 
-        df_hasil, total_f0 = calculate_f0(edited_df)
-        save_f0_data(pelanggan_id, df_hasil)
+if submitted:
+    total_waktu = len(edited_df)
+    pelanggan_tuple = (nama, str(tanggal), no_sesi, no_batch, total_waktu,
+                    jenis_produk, jumlah_awal, jumlah_akhir, basket1, basket2, basket3, petugas, paraf)
+    pelanggan_id = save_data_pelanggan(pelanggan_tuple)
 
-        st.success(f"Data berhasil disimpan. Nilai Total F0: {total_f0}")
+    df_hasil, total_f0 = calculate_f0(edited_df)
+    save_f0_data(pelanggan_id, df_hasil)
 
-        csv = df_hasil.to_csv(index=False).encode('utf-8')
-        pdf_data = export_pdf(pelanggan_tuple, df_hasil)
+    st.success(f"Data berhasil disimpan. Nilai Total F0: {total_f0}")
 
-        st.download_button("⬇️ Download CSV", data=csv, file_name="data_f0.csv", mime="text/csv")
-        st.download_button("⬇️ Download PDF", data=pdf_data, file_name="laporan_retort.pdf", mime="application/pdf")
+    csv = df_hasil.to_csv(index=False).encode('utf-8')
+    pdf_data = export_pdf(pelanggan_tuple, df_hasil)
 
-    # ----------------------------
-    # DASHBOARD F0
-    # ----------------------------
-    st.header("📈 Dashboard Ringkasan F0")
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute("SELECT pelanggan.id, nama, tanggal, total_waktu FROM pelanggan ORDER BY id DESC LIMIT 5")
-    data = c.fetchall()
-    st.table(pd.DataFrame(data, columns=["ID", "Nama", "Tanggal", "Total Waktu"]))
+    st.download_button("⬇️ Download CSV", data=csv, file_name="data_f0.csv", mime="text/csv")
+    st.download_button("⬇️ Download PDF", data=pdf_data, file_name="laporan_retort.pdf", mime="application/pdf")
 
-    c.execute("SELECT pelanggan_id, SUM(f0) FROM f0_data GROUP BY pelanggan_id ORDER BY pelanggan_id DESC LIMIT 5")
-    f0s = c.fetchall()
-    if f0s:
-        ids, f0vals = zip(*f0s)
-        fig, ax = plt.subplots()
-        ax.plot(ids, f0vals, marker='o')
-        ax.axhline(y=3.0, color='r', linestyle='--', label='Batas Minimal F0')
-        ax.set_title("Nilai F0 Tiap Sesi")
-        ax.set_xlabel("ID Sesi")
-        ax.set_ylabel("Total F0")
-        ax.legend()
-        st.pyplot(fig)
+# ----------------------------
+# DASHBOARD F0
+# ----------------------------
+st.header("📈 Dashboard Ringkasan F0")
+conn = sqlite3.connect(DB_PATH)
+c = conn.cursor()
+c.execute("SELECT pelanggan.id, nama, tanggal, total_waktu FROM pelanggan ORDER BY id DESC LIMIT 5")
+data = c.fetchall()
+st.table(pd.DataFrame(data, columns=["ID", "Nama", "Tanggal", "Total Waktu"]))
 
-    conn.close()
+c.execute("SELECT pelanggan_id, SUM(f0) FROM f0_data GROUP BY pelanggan_id ORDER BY pelanggan_id DESC LIMIT 5")
+f0s = c.fetchall()
+if f0s:
+    ids, f0vals = zip(*f0s)
+    fig, ax = plt.subplots()
+    ax.plot(ids, f0vals, marker='o')
+    ax.axhline(y=3.0, color='r', linestyle='--', label='Batas Minimal F0')
+    ax.set_title("Nilai F0 Tiap Sesi")
+    ax.set_xlabel("ID Sesi")
+    ax.set_ylabel("Total F0")
+    ax.legend()
+    st.pyplot(fig)
+
+conn.close()
