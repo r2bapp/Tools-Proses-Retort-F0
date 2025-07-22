@@ -18,31 +18,26 @@ F0_REFERENCE_TEMP = 121.1
 Z_VALUE = 10
 AUTHORIZED_USERS = ["bagoes", "dimas", "iwan"]
 
-# ----------------------------
-# SISTEM LOGIN SEDERHANA BERDASARKAN NAMA
-# ----------------------------
-if 'logged_in' not in st.session_state:
+if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
-if 'username' not in st.session_state:
-    st.session_state.username = ""
 
 if not st.session_state.logged_in:
-    st.title("🔐 Login Pengguna")
-    username_input = st.text_input("Masukkan nama pengguna (bagoes / dimas / iwan)")
-    login_button = st.button("Login")
+    st.image(LOGO_PATH, width=200)
+    st.title("Login Aplikasi Proses Retort R2B")
+    username = st.text_input("Masukkan Nama (bagoes / dimas / iwan)")
 
-    if login_button:
-        if username_input.lower() in AUTHORIZED_USERS:
+    if st.button("Login"):
+        if username.strip().lower() in AUTHORIZED_USERS:
             st.session_state.logged_in = True
-            st.session_state.username = username_input.lower()
-        st.session_state.logged_in = True
-        st.success(f"Selamat datang, {username.capitalize()}! Anda berhasil login.")
-        st.stop()
-
+            st.success(f"Selamat datang, {username.capitalize()}! Anda berhasil login.")
+            st.stop()
         else:
-            st.error("Nama tidak dikenali. Silakan coba lagi.")
+            st.error("Nama tidak dikenal. Silakan coba lagi.")
 else:
-    st.sidebar.success(f"👋 Selamat datang, {st.session_state.username.capitalize()}")
+    # Mulai aplikasi utama setelah login
+    st.image(LOGO_PATH, width=200)
+    st.title("📊 Aplikasi Proses Retort R2B")
+
 
 # ----------------------------
 # INISIALISASI DATABASE
