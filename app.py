@@ -35,7 +35,10 @@ if not st.session_state.logged_in:
         if username_input.lower() in AUTHORIZED_USERS:
             st.session_state.logged_in = True
             st.session_state.username = username_input.lower()
-            st.experimental_rerun()
+        st.session_state.logged_in = True
+st.success(f"Selamat datang, {username.capitalize()}! Anda berhasil login.")
+st.stop()
+
         else:
             st.error("Nama tidak dikenali. Silakan coba lagi.")
 else:
