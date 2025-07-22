@@ -40,6 +40,15 @@ if not st.session_state.logged_in:
             st.error("Nama tidak dikenali. Silakan coba lagi.")
 else:
     st.sidebar.success(f"👋 Selamat datang, {st.session_state.username.capitalize()}")
+    
+
+# ----------------------------
+# KONFIGURASI
+# ----------------------------
+DB_PATH = "data_retort.db"
+LOGO_PATH = "R2B.png"
+F0_REFERENCE_TEMP = 121.1
+Z_VALUE = 10
 
 # ----------------------------
 # INISIALISASI DATABASE
@@ -53,7 +62,6 @@ def init_db():
             nama TEXT, tanggal TEXT, sesi TEXT, batch TEXT,
             total_waktu INTEGER, jenis_produk TEXT,
             jumlah_awal INTEGER, jumlah_akhir INTEGER,
-            basket1 INTEGER, basket2 INTEGER, basket3 INTEGER,
             petugas TEXT, paraf TEXT
         )
     """)
@@ -78,8 +86,8 @@ def save_data_pelanggan(data):
     c = conn.cursor()
     c.execute("""
         INSERT INTO pelanggan (nama, tanggal, sesi, batch, total_waktu,
-        jenis_produk, jumlah_awal, jumlah_akhir, basket1, basket2, basket3, petugas, paraf)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        jenis_produk, jumlah_awal, jumlah_akhir, petugas, paraf)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, data)
     conn.commit()
     pelanggan_id = c.lastrowid
@@ -133,12 +141,10 @@ def export_pdf(pelanggan, df):
 # ----------------------------
 # UI UTAMA
 # ----------------------------
-if st.session_state.logged_in:
-    st.set_page_config(page_title="Retort Tools - R2B", layout="centered", page_icon=":fire:")
-    st.image(LOGO_PATH, width=120)
-    st.title("📋 Tools Input Proses Retort & Perhitungan F0 |by  Rumah Retort Bersama")
+st.set_page_config(page_title="Retort Tools - R2B", layout="centered", page_icon=":fire:")
+st.image(LOGO_PATH, width=120)
+st.title("📋 Tools Input & F0 Retort | Rumah Retort Bersama")
 
-   # Ambil input dari form pelanggan
 with st.form("form_input"):
     st.header("1️⃣ Data Pelanggan")
     nama = st.text_input("Nama Pelanggan")
@@ -149,64 +155,72 @@ with st.form("form_input"):
     jenis_produk = st.text_area("Jenis Produk (bisa lebih dari satu)")
     jumlah_awal = st.number_input("Jumlah Produk Awal", 0)
     jumlah_akhir = st.number_input("Jumlah Produk Akhir", 0)
-    
-    # ✅ Input tambahan untuk basket
     basket1 = st.number_input("Jumlah Basket 1", 0, 100)
     basket2 = st.number_input("Jumlah Basket 2", 0, 100)
     basket3 = st.number_input("Jumlah Basket 3", 0, 100)
-
     petugas = st.text_input("Petugas")
     paraf = st.text_input("Paraf")
 
-    submitted = st.form_submit_button("Simpan Data & Mulai Input Parameter")
+    st.header("2️⃣ Input Parameter Proses (60 Menit)")
+    df_input = pd.DataFrame({
+        'menit': list(range(1, 61)),
+        'suhu': [0]*60,
+        'tekanan': [0]*60,
+        'keterangan': ['']*60
+    })
+    edited_df = st.data_editor(
+    df_input,
+    num_rows="fixed",
+    column_config={
+        "suhu": st.column_config.NumberColumn(
+            "Suhu (°C)", step=0.1, min_value=0.0
+        ),
+        "tekanan": st.column_config.NumberColumn(
+            "Tekanan (kg/cm²)", step=0.1, min_value=0.1
+        ),
+        "keterangan": st.column_config.TextColumn("Keterangan"),
+    }
+)
 
-    if submitted:
-        pelanggan_tuple = (
-            nama,
-            str(tanggal),
-            no_sesi,
-            no_batch,
-            total_waktu,
-            jenis_produk,
-            jumlah_awal,
-            jumlah_akhir,
-            basket1,
-            basket2,
-            basket3,
-            petugas,
-            paraf
-        )
+    submitted = st.form_submit_button("💾 Simpan & Hitung F0")
 
-        pelanggan_id = save_data_pelanggan(pelanggan_tuple)
-        st.success("✅ Data pelanggan berhasil disimpan.")
+if submitted:
+    pelanggan_tuple = (nama, str(tanggal), no_sesi, no_batch, total_waktu,
+                       jenis_produk, jumlah_awal, jumlah_akhir, petugas, paraf)
+    pelanggan_id = save_data_pelanggan(pelanggan_tuple)
 
-        csv = df_hasil.to_csv(index=False).encode('utf-8')
-        pdf_data = export_pdf(pelanggan_tuple, df_hasil)
+    df_hasil, total_f0 = calculate_f0(edited_df)
+    save_f0_data(pelanggan_id, df_hasil)
 
-        st.download_button("⬇️ Download CSV", data=csv, file_name="data_f0.csv", mime="text/csv")
-        st.download_button("⬇️ Download PDF", data=pdf_data, file_name="laporan_retort.pdf", mime="application/pdf")
+    st.success(f"Data berhasil disimpan. Nilai Total F0: {total_f0}")
 
-    # ----------------------------
-    # DASHBOARD F0
-    # ----------------------------
-    st.header("📈 Dashboard Ringkasan F0")
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute("SELECT pelanggan.id, nama, tanggal, total_waktu FROM pelanggan ORDER BY id DESC LIMIT 5")
-    data = c.fetchall()
-    st.table(pd.DataFrame(data, columns=["ID", "Nama", "Tanggal", "Total Waktu"]))
+    csv = df_hasil.to_csv(index=False).encode('utf-8')
+    pdf_data = export_pdf(pelanggan_tuple, df_hasil)
 
-    c.execute("SELECT pelanggan_id, SUM(f0) FROM f0_data GROUP BY pelanggan_id ORDER BY pelanggan_id DESC LIMIT 5")
-    f0s = c.fetchall()
-    if f0s:
-        ids, f0vals = zip(*f0s)
-        fig, ax = plt.subplots()
-        ax.plot(ids, f0vals, marker='o')
-        ax.axhline(y=3.0, color='r', linestyle='--', label='Batas Minimal F0')
-        ax.set_title("Nilai F0 Tiap Sesi")
-        ax.set_xlabel("ID Sesi")
-        ax.set_ylabel("Total F0")
-        ax.legend()
-        st.pyplot(fig)
+    st.download_button("⬇️ Download CSV", data=csv, file_name="data_f0.csv", mime="text/csv")
+    st.download_button("⬇️ Download PDF", data=pdf_data, file_name="laporan_retort.pdf", mime="application/pdf")
 
-    conn.close()
+# ----------------------------
+# DASHBOARD F0
+# ----------------------------
+st.header("📈 Dashboard Ringkasan F0")
+conn = sqlite3.connect(DB_PATH)
+c = conn.cursor()
+c.execute("SELECT pelanggan.id, nama, tanggal, total_waktu FROM pelanggan ORDER BY id DESC LIMIT 5")
+data = c.fetchall()
+st.table(pd.DataFrame(data, columns=["ID", "Nama", "Tanggal", "Total Waktu"]))
+
+c.execute("SELECT pelanggan_id, SUM(f0) FROM f0_data GROUP BY pelanggan_id ORDER BY pelanggan_id DESC LIMIT 5")
+f0s = c.fetchall()
+if f0s:
+    ids, f0vals = zip(*f0s)
+    fig, ax = plt.subplots()
+    ax.plot(ids, f0vals, marker='o')
+    ax.axhline(y=3.0, color='r', linestyle='--', label='Batas Minimal F0')
+    ax.set_title("Nilai F0 Tiap Sesi")
+    ax.set_xlabel("ID Sesi")
+    ax.set_ylabel("Total F0")
+    ax.legend()
+    st.pyplot(fig)
+
+conn.close()
