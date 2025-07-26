@@ -102,19 +102,61 @@ def save_f0_data(pelanggan_id, df):
     conn.commit()
     conn.close()
 
-# ----------------------------
-# HITUNG F0
-# ----------------------------
-def calculate_f0(dataframe):
+# Fungsi hitung F₀
+def calculate_f0(temps, T_ref=121.1, z=10):
     f0_values = []
-    for i in range(len(dataframe)):
-        t = dataframe.loc[i, 'suhu']
-        delta_t = 1  # diasumsikan 1 menit interval antar data
-        f0_i = delta_t * 10 ** ((t - F0_REFERENCE_TEMP) / Z_VALUE)
-        f0_values.append(round(f0_i, 3))
-    dataframe['f0'] = f0_values
-    total_f0 = round(sum(f0_values), 2)
-    return dataframe, total_f0
+    for T in temps:
+        if T < 90:
+            f0_values.append(0)
+        else:
+            f0_values.append(10 ** ((T - T_ref) / z))
+    return np.cumsum(f0_values)
+
+# Fungsi cek suhu minimal 121.1°C selama ≥3 menit
+def check_minimum_holding_time(temps, min_temp=121.1, min_duration=3):
+    holding_minutes = 0
+    for t in temps:
+        if t >= min_temp:
+            holding_minutes += 1
+        else:
+            holding_minutes = 0
+        if holding_minutes >= min_duration:
+            return True
+    return False
+
+if temps:
+    f0 = calculate_f0(temps)
+    f0_total = f0[-1]
+    valid = check_minimum_holding_time(temps)
+    status = "Lolos" if valid else "Tidak Lolos"
+
+    st.info(f"📊 Data suhu valid ditemukan: {len(temps)} menit")
+    st.success(f"✅ Nilai F₀ Total: {f0_total:.2f}")
+
+    if valid:
+        st.success("✅ Suhu ≥121.1°C tercapai minimal selama 3 menit")
+    else:
+        st.warning("⚠️ Suhu ≥121.1°C belum tercapai selama 3 menit")
+
+    # Buat grafik
+    fig, ax = plt.subplots()
+    ax.plot(range(1, len(temps)+1), temps, label="Suhu (°C)", marker='o')
+    ax.axhline(90, color='red', linestyle='--', label="Ambang F₀ (90°C)")
+    ax.axhline(121.1, color='green', linestyle='--', label="Target BPOM (121.1°C)")
+    ax.set_xlabel("Menit")
+    ax.set_ylabel("Suhu (°C)")
+
+    ax2 = ax.twinx()
+    ax2.plot(range(1, len(f0)+1), f0, color='orange', label="F₀ Akumulatif", linestyle='--')
+    ax2.set_ylabel("F₀")
+
+    ax.legend(loc="center left")
+    ax2.legend(loc="center right")
+
+    st.pyplot(fig)
+
+    # Simpan grafik ke file
+    fig.savefig("grafik.png")
 
 # ----------------------------
 # EKSPOR PDF
