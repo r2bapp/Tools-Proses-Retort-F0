@@ -65,7 +65,7 @@ def dashboard_page():
 # ---------------------- INPUT DATA ----------------------
 def input_data_page():
     st.title("🧪 Input Data Proses Retort")
-    waktu = st.time_input("Waktu")
+    waktu = st.time_input("Waktu (menit)", min_value=1)
     suhu = st.number_input("Suhu (°C)", min_value=0.0)
     tekanan = st.number_input("Tekanan (bar)", min_value=0.0)
     keterangan = st.text_input("Keterangan")
