@@ -3,7 +3,7 @@ from streamlit_drawable_canvas import st_canvas
 import pandas as pd
 import numpy as np
 import sqlite3
-from datetime import datetime
+from datetime import time, timedelta, datetime
 from fpdf import FPDF
 import io
 import base64
@@ -65,7 +65,18 @@ def dashboard_page():
 # ---------------------- INPUT DATA ----------------------
 def input_data_page():
     st.title("🧪 Input Data Proses Retort")
-    waktu = st.time_input("Waktu (menit)", min_value=1)
+    # Input waktu
+    waktu = st.time_input("Waktu", value=time(0, 0))
+
+# Validasi waktu maksimal 2 jam
+if datetime.combine(datetime.today(), waktu) - datetime.combine(datetime.today(), time(0, 0)) > timedelta(hours=2):
+    st.error("Waktu tidak boleh lebih dari 2 jam (120 menit). Silakan masukkan ulang.")
+else:
+    # Lanjutkan proses jika valid
+    # Misal:
+    suhu = st.number_input("Suhu (°C)", min_value=0.0)
+    tekanan = st.number_input("Tekanan (psi/bar)", min_value=0.0)
+    keterangan = st.text_input("Keterangan (Opsional)")
     suhu = st.number_input("Suhu (°C)", min_value=0.0)
     tekanan = st.number_input("Tekanan (bar)", min_value=0.0)
     keterangan = st.text_input("Keterangan")
