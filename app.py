@@ -149,8 +149,19 @@ if st.button("Hitung & Simpan"):
 
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute("INSERT INTO hasil_retort (pelanggan, nama_umkm, nama_produk, nomor_kontak, jumlah_awal, basket1, basket2, basket3, jumlah_akhir, total_f0, tanggal, data_pantauan) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-              (pelanggan, nama_umkm, nama_produk, nomor_kontak, jumlah_awal, basket1, basket2, basket3, jumlah_akhir, total_f0, tanggal.strftime("%Y-%m-%d"), df_input.to_json()))
+   c.execute("""
+    INSERT INTO hasil_retort (
+        pelanggan, nama_umkm, nama_produk, nomor_kontak,
+        jumlah_awal, basket1, basket2, basket3,
+        jumlah_akhir, total_f0, tanggal, data_pantauan
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+""", (
+    pelanggan, nama_umkm, nama_produk, nomor_kontak,
+    jumlah_awal, basket1, basket2, basket3,
+    jumlah_akhir, total_f0, tanggal.strftime("%Y-%m-%d"), df_input.to_json()
+))
+, df_input.to_json()))
     conn.commit()
     conn.close()
 
