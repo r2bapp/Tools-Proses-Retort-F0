@@ -1,183 +1,193 @@
+# app.py
 import streamlit as st
-from streamlit_drawable_canvas import st_canvas
-import pandas as pd
-import numpy as np
 import sqlite3
-from datetime import time, timedelta, datetime
+import pandas as pd
+from datetime import datetime, timedelta, time
+from streamlit_drawable_canvas import st_canvas
 from fpdf import FPDF
-import io
-import base64
-
-# ---------------------- CONFIGURATIONS ----------------------
-st.set_page_config(page_title="Retort F0 Tools - Rumah Retort Bersama", layout="wide")
+import os
 
 DB_PATH = "retort_data.db"
 
-# ---------------------- DATABASE INIT ----------------------
+# Inisialisasi database
 def init_db():
     conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute('''CREATE TABLE IF NOT EXISTS hasil_f0 (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        waktu TEXT,
-                        suhu REAL,
-                        tekanan REAL,
-                        keterangan TEXT
-                    )''')
+    c = conn.cursor()
+    c.execute('''CREATE TABLE IF NOT EXISTS pelanggan (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nama TEXT,
+                    alamat TEXT,
+                    no_hp TEXT
+                )''')
+    c.execute('''CREATE TABLE IF NOT EXISTS hasil_f0 (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    tanggal TEXT,
+                    waktu TEXT,
+                    suhu REAL,
+                    tekanan REAL,
+                    keterangan TEXT
+                )''')
+    c.execute('''CREATE TABLE IF NOT EXISTS metadata (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    jumlah_awal INTEGER,
+                    basket1 INTEGER,
+                    basket2 INTEGER,
+                    basket3 INTEGER,
+                    jumlah_akhir INTEGER,
+                    user TEXT,
+                    tanda_tangan TEXT
+                )''')
     conn.commit()
     conn.close()
 
-init_db()
-
-# ---------------------- PAGE SETUP ----------------------
-st.sidebar.title("📋 Navigasi")
-page = st.sidebar.radio("Pilih halaman:", ["🏠 Dashboard", "🧪 Input Data", "📈 Hasil F0"])
-
-# ---------------------- SESSION STATE SETUP ----------------------
-if 'user' not in st.session_state:
-    st.session_state.user = None
-
-# ---------------------- LOGIN ----------------------
-def login_page():
-    st.title("🔐 Login")
-    username = st.text_input("Masukkan nama pengguna")
-    if st.button("Login"):
-        if username.lower() in ["bagoes", "iwan", "dimas"]:
-            st.session_state.user = username
-            st.success(f"Selamat datang, {username}!")
-        else:
-            st.error("Nama pengguna tidak dikenal.")
-
-if st.session_state.user is None:
-    login_page()
-    st.stop()
-
-# ---------------------- DASHBOARD ----------------------
-def dashboard_page():
-    st.title("🏠 Dashboard Retort Tools")
-    st.markdown("""
-    ### Selamat datang di aplikasi Tools Proses Retort F0
-    Aplikasi ini membantu mencatat data proses retort, menghitung nilai F0, dan mengunduh laporan PDF.
-    
-    **Pengguna terautentikasi:** {user}
-    """.format(user=st.session_state.user))
-
-# ---------------------- INPUT DATA ----------------------
-def input_data_page():
-    st.title("🧪 Input Data Proses Retort")
-    # Input waktu
-    waktu = st.time_input("Waktu", value=time(0, 0))
-
-# Validasi waktu maksimal 2 jam
-if datetime.combine(datetime.today(), waktu) - datetime.combine(datetime.today(), time(0, 0)) > timedelta(hours=2):
-    st.error("Waktu tidak boleh lebih dari 2 jam (120 menit). Silakan masukkan ulang.")
-else:
-    # Lanjutkan proses jika valid
-    # Misal:
-    suhu = st.number_input("Suhu (°C)", min_value=0.0)
-    tekanan = st.number_input("Tekanan (psi/bar)", min_value=0.0)
-    keterangan = st.text_input("Keterangan (Opsional)")
-    suhu = st.number_input("Suhu (°C)", min_value=0.0)
-    tekanan = st.number_input("Tekanan (bar)", min_value=0.0)
-    keterangan = st.text_input("Keterangan")
-
-    if st.button("Simpan Data"):
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        cursor.execute("INSERT INTO hasil_f0 (waktu, suhu, tekanan, keterangan) VALUES (?, ?, ?, ?)",
-                       (waktu.strftime('%H:%M:%S'), suhu, tekanan, keterangan))
-        conn.commit()
-        conn.close()
-        st.success("✅ Data berhasil disimpan!")
-
-    st.markdown("---")
-    st.subheader("📋 Data Tersimpan")
+# Simpan data pelanggan
+def simpan_pelanggan(nama, alamat, no_hp):
     conn = sqlite3.connect(DB_PATH)
-    df = pd.read_sql_query("SELECT * FROM hasil_f0", conn)
+    c = conn.cursor()
+    c.execute("INSERT INTO pelanggan (nama, alamat, no_hp) VALUES (?, ?, ?)", (nama, alamat, no_hp))
+    conn.commit()
     conn.close()
-    st.dataframe(df)
 
-# ---------------------- HITUNG F0 ----------------------
-def calculate_f0(df):
-    df['F0'] = 0.0
-    T_ref = 121.1
-    z = 10
-    dt = 1  # Asumsi tiap data 1 menit
+# Simpan hasil pantauan
+def simpan_data_hasil_f0(tanggal, waktu, suhu, tekanan, keterangan):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("INSERT INTO hasil_f0 (tanggal, waktu, suhu, tekanan, keterangan) VALUES (?, ?, ?, ?, ?)",
+              (tanggal, waktu, suhu, tekanan, keterangan))
+    conn.commit()
+    conn.close()
 
-    for i in range(len(df)):
-        if df.loc[i, 'suhu'] > 90:
-            f0 = 10 ** ((df.loc[i, 'suhu'] - T_ref) / z)
-            df.loc[i, 'F0'] = f0 * dt
+# Simpan metadata
+def simpan_metadata(jumlah_awal, b1, b2, b3, jumlah_akhir, user, tanda_tangan_path):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("INSERT INTO metadata (jumlah_awal, basket1, basket2, basket3, jumlah_akhir, user, tanda_tangan) VALUES (?, ?, ?, ?, ?, ?, ?)",
+              (jumlah_awal, b1, b2, b3, jumlah_akhir, user, tanda_tangan_path))
+    conn.commit()
+    conn.close()
 
-    total_f0 = df['F0'].sum()
+# Fungsi hitung F0
+import numpy as np
+def calculate_f0(df, T_ref=121.1, z=10):
+    df = df[df['suhu'] > 90].copy()
+    if df.empty:
+        return pd.DataFrame(), 0.0
+    df['dt'] = 1  # diasumsikan tiap menit
+    df['log_reduction'] = 10 ** ((df['suhu'] - T_ref) / z)
+    df['f0'] = df['log_reduction'] * df['dt']
+    df['F0_total'] = df['f0'].cumsum()
+    total_f0 = df['F0_total'].iloc[-1]
     return df, total_f0
 
-# ---------------------- EXPORT PDF ----------------------
-def export_pdf(df, total_f0, jumlah_awal_produk, jumlah_akhir_produk, basket_1, basket_2, basket_3):
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font("Arial", size=12)
+# Generate PDF laporan
+class PDF(FPDF):
+    def header(self):
+        self.set_font("Arial", "B", 12)
+        self.cell(0, 10, "Laporan Proses Retort", 0, 1, "C")
+        self.set_font("Arial", "", 10)
+        self.cell(0, 10, "Diproses oleh Rumah Retort Bersama", 0, 1, "C")
+        self.ln(5)
 
-    pdf.cell(0, 10, "LAPORAN PROSES RETORT", ln=1, align="C")
-    pdf.cell(0, 10, "", ln=1)
+    def footer(self):
+        self.set_y(-15)
+        self.set_font("Arial", "I", 8)
+        self.cell(0, 10, f"Halaman {self.page_no()}", 0, 0, "C")
 
-    pdf.cell(0, 10, f"Total Nilai F0: {total_f0:.2f}", ln=1)
-    pdf.cell(0, 10, f"Jumlah Produk Awal       : {jumlah_awal_produk}", ln=1)
-    pdf.cell(0, 10, f"Jumlah Produk Akhir      : {jumlah_akhir_produk}", ln=1)
-    pdf.cell(0, 10, f"Distribusi Basket:", ln=1)
-    pdf.cell(0, 10, f"  - Basket 1             : {basket_1}", ln=1)
-    pdf.cell(0, 10, f"  - Basket 2             : {basket_2}", ln=1)
-    pdf.cell(0, 10, f"  - Basket 3             : {basket_3}", ln=1)
-    pdf.cell(0, 10, f"", ln=1)
+    def laporan(self, df, total_f0, meta, tanda_path):
+        self.add_page()
+        self.set_font("Arial", "", 10)
+        self.cell(0, 10, f"Tanggal: {datetime.now().strftime('%d-%m-%Y')}", 0, 1)
+        self.cell(0, 10, f"User: {meta['user']}", 0, 1)
+        self.cell(0, 10, f"Jumlah Awal: {meta['jumlah_awal']} | Basket 1: {meta['b1']} | Basket 2: {meta['b2']} | Basket 3: {meta['b3']}", 0, 1)
+        self.cell(0, 10, f"Jumlah Akhir: {meta['jumlah_akhir']}", 0, 1)
+        self.ln(5)
+        self.cell(0, 10, "Data Pantauan:", 0, 1)
 
-    for i, row in df.iterrows():
-        pdf.cell(0, 10, f"{row['waktu']} | Suhu: {row['suhu']}°C | Tekanan: {row['tekanan']} bar | F0: {row['F0']:.2f} | {row['keterangan']}", ln=1)
+        for i in range(len(df)):
+            row = df.iloc[i]
+            self.cell(0, 8, f"{row['waktu']} | Suhu: {row['suhu']} C | Tekanan: {row['tekanan']} | F0: {row['f0']:.2f}", 0, 1)
+        self.ln(5)
+        self.cell(0, 10, f"Total F0: {total_f0:.2f}", 0, 1)
 
-    pdf.cell(0, 10, "", ln=1)
-    pdf.set_font("Arial", style="I", size=10)
-    pdf.multi_cell(0, 10, "Proses Retort Dilakukan Oleh Rumah Retort Bersama", align="C")
+        if tanda_path and os.path.exists(tanda_path):
+            self.image(tanda_path, x=150, y=self.get_y(), w=40)
+            self.ln(40)
 
-    return pdf.output(dest='S').encode('latin1')
+# Halaman utama
+init_db()
+st.set_page_config(layout="wide")
+st.title("Tools Proses Retort - Rumah Retort Bersama")
 
-# ---------------------- HASIL F0 ----------------------
-def hasil_f0_page():
-    st.title("📈 Hasil Perhitungan F0")
+# Login user
+user = st.selectbox("Login sebagai:", ["", "bagoes", "iwan", "dimas"])
+if user == "":
+    st.warning("Silakan login terlebih dahulu")
+    st.stop()
 
-    st.subheader("📦 Distribusi Produk ke Basket")
-    col1, col2 = st.columns(2)
-    with col1:
-        jumlah_awal_produk = st.number_input("Jumlah Produk Awal", min_value=0, step=1, key="jumlah_awal_produk")
-    with col2:
-        jumlah_akhir_produk = st.number_input("Jumlah Produk Akhir (Setelah Retort)", min_value=0, step=1, key="jumlah_akhir_produk")
+st.success(f"Login sebagai {user}")
 
-    basket_1 = st.number_input("Jumlah di Basket 1", min_value=0, step=1, key="basket_1")
-    basket_2 = st.number_input("Jumlah di Basket 2", min_value=0, step=1, key="basket_2")
-    basket_3 = st.number_input("Jumlah di Basket 3", min_value=0, step=1, key="basket_3")
+# Input metadata
+jumlah_awal = st.number_input("Jumlah Awal Produk", min_value=0)
+b1 = st.number_input("Isi Basket 1", min_value=0)
+b2 = st.number_input("Isi Basket 2", min_value=0)
+b3 = st.number_input("Isi Basket 3", min_value=0)
+jumlah_akhir = st.number_input("Jumlah Akhir Produk", min_value=0)
 
-    if jumlah_awal_produk != basket_1 + basket_2 + basket_3:
-        st.warning("⚠️ Jumlah produk di basket tidak sama dengan jumlah awal.")
+# Input data pantauan suhu
+st.subheader("Input Data Pantauan Tiap Menit")
+data = []
+for i in range(3):  # contoh 3 baris input
+    waktu = st.time_input(f"Waktu ke-{i+1}", key=f"waktu{i}")
+    if datetime.combine(datetime.today(), waktu) - datetime.combine(datetime.today(), time(0, 0)) > timedelta(hours=2):
+        st.error("Waktu tidak boleh lebih dari 2 jam")
+        st.stop()
+    suhu = st.number_input(f"Suhu ke-{i+1} (°C)", key=f"suhu{i}")
+    tekanan = st.number_input(f"Tekanan ke-{i+1} (bar)", key=f"tekanan{i}")
+    ket = st.text_input(f"Keterangan ke-{i+1}", key=f"ket{i}")
+    data.append({"waktu": waktu.strftime("%H:%M"), "suhu": suhu, "tekanan": tekanan, "keterangan": ket})
 
-    conn = sqlite3.connect(DB_PATH)
-    df = pd.read_sql_query("SELECT * FROM hasil_f0", conn)
-    conn.close()
+# Simpan ke database dan hitung F0
+if st.button("Hitung dan Simpan"):
+    tanggal = datetime.now().strftime("%Y-%m-%d")
+    for row in data:
+        simpan_data_hasil_f0(tanggal, row['waktu'], row['suhu'], row['tekanan'], row['keterangan'])
 
-    edited_df = st.data_editor(df, num_rows="dynamic", use_container_width=True)
+    df = pd.DataFrame(data)
+    df_hasil, total_f0 = calculate_f0(df)
 
-    if st.button("🔍 Hitung F0"):
-        df_hasil, total_f0 = calculate_f0(edited_df)
-        st.success(f"Total Nilai F0: {total_f0:.2f}")
-        st.dataframe(df_hasil)
+    # Gambar tanda tangan manual
+    st.subheader("Tanda Tangan")
+    canvas_result = st_canvas(
+        fill_color="#000000",
+        stroke_width=2,
+        stroke_color="#000000",
+        background_color="#FFFFFF",
+        height=150,
+        drawing_mode="freedraw",
+        key="canvas",
+    )
+    tanda_path = None
+    if canvas_result.image_data is not None:
+        from PIL import Image
+        image = Image.fromarray((canvas_result.image_data).astype('uint8'))
+        tanda_path = f"tanda_tangan_{user}.png"
+        image.save(tanda_path)
 
-        # PDF Export
-        pdf_bytes = export_pdf(df_hasil, total_f0, jumlah_awal_produk, jumlah_akhir_produk, basket_1, basket_2, basket_3)
-        b64 = base64.b64encode(pdf_bytes).decode()
-        href = f'<a href="data:application/pdf;base64,{b64}" download="laporan_f0.pdf">📄 Unduh PDF</a>'
-        st.markdown(href, unsafe_allow_html=True)
+    simpan_metadata(jumlah_awal, b1, b2, b3, jumlah_akhir, user, tanda_path)
 
-# ---------------------- ROUTING ----------------------
-if page == "🏠 Dashboard":
-    dashboard_page()
-elif page == "🧪 Input Data":
-    input_data_page()
-elif page == "📈 Hasil F0":
-    hasil_f0_page()
+    # Buat PDF
+    pdf = PDF()
+    pdf.laporan(df_hasil, total_f0, {
+        "jumlah_awal": jumlah_awal,
+        "b1": b1, "b2": b2, "b3": b3,
+        "jumlah_akhir": jumlah_akhir,
+        "user": user
+    }, tanda_path)
+
+    output_path = f"laporan_retort_{datetime.now().strftime('%d%m%Y_%H%M%S')}.pdf"
+    pdf.output(output_path)
+
+    with open(output_path, "rb") as f:
+        st.download_button("📄 Unduh Laporan PDF", f, file_name=output_path)
+
+    st.success("Data disimpan dan PDF berhasil dibuat!")
