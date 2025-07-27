@@ -112,9 +112,10 @@ def hasil_f0_page():
     df = st.session_state.df_parameter
 
     # Hitung F0
-    temps = df['suhu'].tolist()
-    f0_cumsum = calculate_f0(temps)
-    df['F0'] = f0_cumsum
+  temps = edited_df['suhu'].tolist()
+  df_hasil = edited_df.copy()
+  df_hasil['F0'] = calculate_f0(temps)
+
 
     # Cek validasi
     valid = check_minimum_holding_time(temps)
