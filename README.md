@@ -1,24 +1,25 @@
-# 📦 Tools Proses Retort F₀ - Rumah Retort Bersama
+# Tools Retort R2B
 
-Aplikasi berbasis **Streamlit Multipage** untuk menghitung dan memvalidasi proses sterilisasi **Retort** berdasarkan nilai **F₀** (lethality). Dikembangkan untuk mendukung pelaku UMKM pangan dalam memastikan keamanan proses tanpa cold chain.
+Aplikasi pencatatan proses retort dengan perhitungan otomatis nilai F₀, dilengkapi fitur input data pelanggan, parameter suhu dan tekanan tiap menit, serta ekspor laporan PDF lengkap dengan watermark "Diproses oleh Rumah Retort Bersama".
 
----
+## Cara Menjalankan
 
-## 🔧 Fitur Utama
+1. Install dependensi:
+```bash
+pip install -r requirements.txt
+```
 
-✅ **Input Data Pelanggan & Retort**  
-✅ **Input Data Per Menit (suhu, tekanan, keterangan)**  
-✅ **Perhitungan Otomatis F₀**  
-✅ **Validasi: Suhu ≥ 121.1°C selama ≥ 3 menit**  
-✅ **Grafik Visualisasi Proses**  
-✅ **Ringkasan dan Hasil F₀**  
-✅ **Unduh PDF lengkap dengan watermark & struktur rapi**  
-✅ **Sistem Login Sederhana (Bagoes, Iwan, Dimas)**  
-✅ **Dukungan touchscreen untuk tanda tangan manual**  
+2. Jalankan aplikasi:
+```bash
+streamlit run app.py
+```
 
----
+## Fitur
+- Login pengguna (iwan, bagoes, dimas)
+- Input data pelanggan
+- Input proses: waktu venting, cut, holding, cooling
+- Data produk & basket
+- Input suhu & tekanan per menit
+- Perhitungan F0 otomatis
+- Ekspor laporan PDF
 
-## 🧮 Rumus Perhitungan F₀
-
-```python
-F₀ = Σ(10 ** ((T - 121.1) / z))
