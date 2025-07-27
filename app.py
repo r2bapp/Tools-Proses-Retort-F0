@@ -87,7 +87,7 @@ def generate_pdf(pelanggan, jumlah_awal, basket1, basket2, basket3, jumlah_akhir
 
 # ---------- Aplikasi Streamlit ----------
 st.set_page_config(page_title="Proses Retort R2B", layout="wide")
-st.title("📊 Tools Proses Retort & F0 | Rumah Retort Bersama")
+st.title("Tools Proses Retort & Penghitung F0 |by Rumah Retort Bersama")
 
 # ---------- Login ----------
 username = st.text_input("Masukkan Nama (bagoes, iwan, dimas):")
@@ -98,6 +98,9 @@ if username.lower() not in ["bagoes", "iwan", "dimas"]:
 # ---------- Input Data ----------
 st.header("Input Data Pelanggan dan Proses")
 pelanggan = st.text_input("Nama Pelanggan")
+nama_umkm = st.text_input("Nama UMKM")
+nama_produk = st.text_input("Nama Produk")
+nomor_kontak = st.number_input("Nomor Kontak", min_value=0)
 tanggal = st.date_input("Tanggal Proses")
 jumlah_awal = st.number_input("Jumlah Awal Produk", min_value=0)
 basket1 = st.number_input("Jumlah Basket 1", min_value=0)
@@ -140,12 +143,12 @@ if st.button("Hitung & Simpan"):
 
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute("INSERT INTO hasil_retort (pelanggan, jumlah_awal, basket1, basket2, basket3, jumlah_akhir, total_f0, tanggal, data_pantauan) VALUES (?,?,?,?,?,?,?,?,?)",
-              (pelanggan, jumlah_awal, basket1, basket2, basket3, jumlah_akhir, total_f0, tanggal.strftime("%Y-%m-%d"), df_input.to_json()))
+    c.execute("INSERT INTO hasil_retort (pelanggan, nama_umkm, nama_produk, nomor_kontak, jumlah_awal, basket1, basket2, basket3, jumlah_akhir, total_f0, tanggal, data_pantauan) VALUES (?,?,?,?,?,?,?,?,?)",
+              (pelanggan, nama_umkm, nama_produk, nomor_kontak, jumlah_awal, basket1, basket2, basket3, jumlah_akhir, total_f0, tanggal.strftime("%Y-%m-%d"), df_input.to_json()))
     conn.commit()
     conn.close()
 
-    path_pdf = generate_pdf(pelanggan, jumlah_awal, basket1, basket2, basket3, jumlah_akhir, df_hasil, total_f0)
+    path_pdf = generate_pdf(pelanggan, nama_umkm, nama_produk, nomor_kontak, jumlah_awal, basket1, basket2, basket3, jumlah_akhir, df_hasil, total_f0)
     with open(path_pdf, "rb") as f:
         st.download_button("📥 Unduh Laporan PDF", f, file_name=path_pdf, mime="application/pdf")
 
