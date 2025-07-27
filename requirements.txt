@@ -1,6 +1,8 @@
-streamlit
-streamlit-drawable-canvas
+streamlit>=1.35.0
 pandas
 numpy
+fpdf2
 matplotlib
-fpdf
+streamlit-authenticator
+streamlit-drawable-canvas
+python-dotenv
