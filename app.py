@@ -6,10 +6,6 @@ import sqlite3
 from fpdf import FPDF
 import io
 
-# Database setup
-conn = sqlite3.connect(check_same_thread=False)
-cursor = conn.cursor()
-
 # Buat tabel
 cursor.execute('''CREATE TABLE IF NOT EXISTS users (
     username TEXT PRIMARY KEY)''')
