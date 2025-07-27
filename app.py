@@ -16,33 +16,6 @@ import os
 DB_PATH = "data_retort.db"
 F0_REFERENCE_TEMP = 121.1
 Z_VALUE = 10
-AUTHORIZED_USERS = ["bagoes", "dimas", "iwan"]
-
-# ----------------------------
-# HALAMAN LOGIN
-# ----------------------------
-def show_login():
-    if "logged_in" not in st.session_state:
-        st.session_state.logged_in = False
-
-    if not st.session_state.logged_in:
-        st.image(LOGO_PATH, width=200)
-        st.title("Login Aplikasi Proses Retort R2B")
-        username = st.text_input("Masukkan Nama (bagoes / dimas / iwan)")
-
-        if st.button("Login"):
-            if username.strip().lower() in AUTHORIZED_USERS:
-                st.session_state.logged_in = True
-                st.success(f"Selamat datang, {username.capitalize()}! Anda berhasil login.")
-                st.experimental_rerun()
-            else:
-                st.error("Nama tidak dikenal. Silakan coba lagi.")
-        return False
-    return True
-
-if not show_login():
-    st.stop()
-
 
 # ----------------------------
 # INISIALISASI DATABASE
