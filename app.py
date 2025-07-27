@@ -112,7 +112,7 @@ def generate_pdf(data_input, df_f0, total_f0):
     pdf.set_font("Arial", "I", 9)
     pdf.cell(0, 10, "Proses Retort Dilakukan Oleh Rumah Retort Bersama", ln=1, align="C")
 
-    return pdf.output(dest='S').encode('latin-1')
+    return pdf.output(dest='S').encode('latin-1')  # ✅ hanya jika Streamlit membutuhkan byte
 
 # -------------------- UI Input --------------------
 st.title("📦 Alat Hitung F0 Proses Retort | Rumah Retort Bersama")
