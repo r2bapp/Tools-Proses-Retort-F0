@@ -1,193 +1,153 @@
-# app.py
 import streamlit as st
-import sqlite3
 import pandas as pd
+import numpy as np
+import sqlite3
 from datetime import datetime, timedelta, time
-from streamlit_drawable_canvas import st_canvas
 from fpdf import FPDF
 import os
 
-DB_PATH = "retort_data.db"
+# ---------- Konstanta ----------
+T_REF = 121.1  # Suhu referensi (°C)
+Z = 10  # Faktor z (°C)
+DB_PATH = "data_retort.db"
 
-# Inisialisasi database
+# ---------- Inisialisasi Database ----------
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS pelanggan (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    nama TEXT,
-                    alamat TEXT,
-                    no_hp TEXT
-                )''')
-    c.execute('''CREATE TABLE IF NOT EXISTS hasil_f0 (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    tanggal TEXT,
-                    waktu TEXT,
-                    suhu REAL,
-                    tekanan REAL,
-                    keterangan TEXT
-                )''')
-    c.execute('''CREATE TABLE IF NOT EXISTS metadata (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    jumlah_awal INTEGER,
-                    basket1 INTEGER,
-                    basket2 INTEGER,
-                    basket3 INTEGER,
-                    jumlah_akhir INTEGER,
-                    user TEXT,
-                    tanda_tangan TEXT
-                )''')
+    c.execute('''CREATE TABLE IF NOT EXISTS hasil_retort (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        pelanggan TEXT,
+        jumlah_awal INTEGER,
+        basket1 INTEGER,
+        basket2 INTEGER,
+        basket3 INTEGER,
+        jumlah_akhir INTEGER,
+        total_f0 REAL,
+        tanggal TEXT,
+        data_pantauan TEXT
+    )''')
     conn.commit()
     conn.close()
 
-# Simpan data pelanggan
-def simpan_pelanggan(nama, alamat, no_hp):
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute("INSERT INTO pelanggan (nama, alamat, no_hp) VALUES (?, ?, ?)", (nama, alamat, no_hp))
-    conn.commit()
-    conn.close()
+# ---------- Fungsi Perhitungan F0 ----------
+def calculate_f0(df):
+    f0_values = []
+    for index, row in df.iterrows():
+        T = row['Suhu (°C)']
+        if T > 90:
+            f = 10 ** ((T - T_REF) / Z)
+        else:
+            f = 0
+        f0_values.append(f)
+    df['F0'] = f0_values
+    df['F0 Akumulatif'] = np.cumsum(f0_values)
+    return df, df['F0 Akumulatif'].iloc[-1] if not df.empty else 0
 
-# Simpan hasil pantauan
-def simpan_data_hasil_f0(tanggal, waktu, suhu, tekanan, keterangan):
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute("INSERT INTO hasil_f0 (tanggal, waktu, suhu, tekanan, keterangan) VALUES (?, ?, ?, ?, ?)",
-              (tanggal, waktu, suhu, tekanan, keterangan))
-    conn.commit()
-    conn.close()
+# ---------- Fungsi PDF ----------
+def generate_pdf(pelanggan, jumlah_awal, basket1, basket2, basket3, jumlah_akhir, df, total_f0):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", "B", 14)
+    pdf.cell(200, 10, "Laporan Proses Retort", ln=True, align="C")
 
-# Simpan metadata
-def simpan_metadata(jumlah_awal, b1, b2, b3, jumlah_akhir, user, tanda_tangan_path):
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute("INSERT INTO metadata (jumlah_awal, basket1, basket2, basket3, jumlah_akhir, user, tanda_tangan) VALUES (?, ?, ?, ?, ?, ?, ?)",
-              (jumlah_awal, b1, b2, b3, jumlah_akhir, user, tanda_tangan_path))
-    conn.commit()
-    conn.close()
+    pdf.set_font("Arial", "", 12)
+    pdf.cell(200, 10, f"Tanggal: {datetime.today().strftime('%d-%m-%Y')}", ln=True)
+    pdf.cell(200, 10, f"Nama Pelanggan: {pelanggan}", ln=True)
+    pdf.cell(200, 10, f"Jumlah Awal Produk: {jumlah_awal}", ln=True)
+    pdf.cell(200, 10, f"Basket 1: {basket1} | Basket 2: {basket2} | Basket 3: {basket3}", ln=True)
+    pdf.cell(200, 10, f"Jumlah Produk Akhir: {jumlah_akhir}", ln=True)
+    pdf.cell(200, 10, f"Total F0: {round(total_f0, 2)} menit", ln=True)
 
-# Fungsi hitung F0
-import numpy as np
-def calculate_f0(df, T_ref=121.1, z=10):
-    df = df[df['suhu'] > 90].copy()
-    if df.empty:
-        return pd.DataFrame(), 0.0
-    df['dt'] = 1  # diasumsikan tiap menit
-    df['log_reduction'] = 10 ** ((df['suhu'] - T_ref) / z)
-    df['f0'] = df['log_reduction'] * df['dt']
-    df['F0_total'] = df['f0'].cumsum()
-    total_f0 = df['F0_total'].iloc[-1]
-    return df, total_f0
+    pdf.set_font("Arial", "B", 12)
+    pdf.cell(200, 10, "\nData Pantauan Retort", ln=True)
 
-# Generate PDF laporan
-class PDF(FPDF):
-    def header(self):
-        self.set_font("Arial", "B", 12)
-        self.cell(0, 10, "Laporan Proses Retort", 0, 1, "C")
-        self.set_font("Arial", "", 10)
-        self.cell(0, 10, "Diproses oleh Rumah Retort Bersama", 0, 1, "C")
-        self.ln(5)
+    pdf.set_font("Arial", size=10)
+    col_width = 48
+    pdf.cell(col_width, 10, "Waktu", 1)
+    pdf.cell(col_width, 10, "Suhu (°C)", 1)
+    pdf.cell(col_width, 10, "Tekanan", 1)
+    pdf.cell(col_width, 10, "Keterangan", 1)
+    pdf.ln()
 
-    def footer(self):
-        self.set_y(-15)
-        self.set_font("Arial", "I", 8)
-        self.cell(0, 10, f"Halaman {self.page_no()}", 0, 0, "C")
+    for _, row in df.iterrows():
+        pdf.cell(col_width, 10, str(row['Waktu']), 1)
+        pdf.cell(col_width, 10, str(row['Suhu (°C)']), 1)
+        pdf.cell(col_width, 10, str(row['Tekanan (psi)']), 1)
+        pdf.cell(col_width, 10, str(row['Keterangan']), 1)
+        pdf.ln()
 
-    def laporan(self, df, total_f0, meta, tanda_path):
-        self.add_page()
-        self.set_font("Arial", "", 10)
-        self.cell(0, 10, f"Tanggal: {datetime.now().strftime('%d-%m-%Y')}", 0, 1)
-        self.cell(0, 10, f"User: {meta['user']}", 0, 1)
-        self.cell(0, 10, f"Jumlah Awal: {meta['jumlah_awal']} | Basket 1: {meta['b1']} | Basket 2: {meta['b2']} | Basket 3: {meta['b3']}", 0, 1)
-        self.cell(0, 10, f"Jumlah Akhir: {meta['jumlah_akhir']}", 0, 1)
-        self.ln(5)
-        self.cell(0, 10, "Data Pantauan:", 0, 1)
+    pdf.ln(5)
+    pdf.set_font("Arial", "I", 10)
+    pdf.cell(200, 10, "Diproses oleh Rumah Retort Bersama", ln=True, align="C")
 
-        for i in range(len(df)):
-            row = df.iloc[i]
-            self.cell(0, 8, f"{row['waktu']} | Suhu: {row['suhu']} C | Tekanan: {row['tekanan']} | F0: {row['f0']:.2f}", 0, 1)
-        self.ln(5)
-        self.cell(0, 10, f"Total F0: {total_f0:.2f}", 0, 1)
+    output_path = f"laporan_retort_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+    pdf.output(output_path)
+    return output_path
 
-        if tanda_path and os.path.exists(tanda_path):
-            self.image(tanda_path, x=150, y=self.get_y(), w=40)
-            self.ln(40)
+# ---------- Aplikasi Streamlit ----------
+st.set_page_config(page_title="Proses Retort R2B", layout="wide")
+st.title("📊 Tools Proses Retort & F0 | Rumah Retort Bersama")
 
-# Halaman utama
-init_db()
-st.set_page_config(layout="wide")
-st.title("Tools Proses Retort - Rumah Retort Bersama")
-
-# Login user
-user = st.selectbox("Login sebagai:", ["", "bagoes", "iwan", "dimas"])
-if user == "":
-    st.warning("Silakan login terlebih dahulu")
+# ---------- Login ----------
+username = st.text_input("Masukkan Nama (bagoes, iwan, dimas):")
+if username.lower() not in ["bagoes", "iwan", "dimas"]:
+    st.warning("Hanya user yang diizinkan yang bisa masuk.")
     st.stop()
 
-st.success(f"Login sebagai {user}")
-
-# Input metadata
+# ---------- Input Data ----------
+st.header("Input Data Pelanggan dan Proses")
+pelanggan = st.text_input("Nama Pelanggan")
+tanggal = st.date_input("Tanggal Proses")
 jumlah_awal = st.number_input("Jumlah Awal Produk", min_value=0)
-b1 = st.number_input("Isi Basket 1", min_value=0)
-b2 = st.number_input("Isi Basket 2", min_value=0)
-b3 = st.number_input("Isi Basket 3", min_value=0)
-jumlah_akhir = st.number_input("Jumlah Akhir Produk", min_value=0)
+basket1 = st.number_input("Jumlah Basket 1", min_value=0)
+basket2 = st.number_input("Jumlah Basket 2", min_value=0)
+basket3 = st.number_input("Jumlah Basket 3", min_value=0)
 
-# Input data pantauan suhu
-st.subheader("Input Data Pantauan Tiap Menit")
-data = []
-for i in range(3):  # contoh 3 baris input
-    waktu = st.time_input(f"Waktu ke-{i+1}", key=f"waktu{i}")
-    if datetime.combine(datetime.today(), waktu) - datetime.combine(datetime.today(), time(0, 0)) > timedelta(hours=2):
-        st.error("Waktu tidak boleh lebih dari 2 jam")
-        st.stop()
-    suhu = st.number_input(f"Suhu ke-{i+1} (°C)", key=f"suhu{i}")
-    tekanan = st.number_input(f"Tekanan ke-{i+1} (bar)", key=f"tekanan{i}")
-    ket = st.text_input(f"Keterangan ke-{i+1}", key=f"ket{i}")
-    data.append({"waktu": waktu.strftime("%H:%M"), "suhu": suhu, "tekanan": tekanan, "keterangan": ket})
+st.subheader("Pantauan Suhu, Tekanan dan Keterangan (Per Menit)")
+data = {
+    "Waktu": [],
+    "Suhu (°C)": [],
+    "Tekanan (psi)": [],
+    "Keterangan": []
+}
 
-# Simpan ke database dan hitung F0
-if st.button("Hitung dan Simpan"):
-    tanggal = datetime.now().strftime("%Y-%m-%d")
-    for row in data:
-        simpan_data_hasil_f0(tanggal, row['waktu'], row['suhu'], row['tekanan'], row['keterangan'])
+for i in range(10):
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        waktu = st.time_input(f"Waktu {i+1}", key=f"waktu_{i}")
+    with col2:
+        suhu = st.number_input(f"Suhu °C {i+1}", key=f"suhu_{i}")
+    with col3:
+        tekanan = st.number_input(f"Tekanan {i+1}", key=f"tekanan_{i}")
+    with col4:
+        ket = st.text_input(f"Keterangan {i+1}", key=f"ket_{i}")
+    data['Waktu'].append(waktu.strftime("%H:%M"))
+    data['Suhu (°C)'].append(suhu)
+    data['Tekanan (psi)'].append(tekanan)
+    data['Keterangan'].append(ket)
 
-    df = pd.DataFrame(data)
-    df_hasil, total_f0 = calculate_f0(df)
+jumlah_akhir = st.number_input("Jumlah Produk Akhir", min_value=0)
 
-    # Gambar tanda tangan manual
-    st.subheader("Tanda Tangan")
-    canvas_result = st_canvas(
-        fill_color="#000000",
-        stroke_width=2,
-        stroke_color="#000000",
-        background_color="#FFFFFF",
-        height=150,
-        drawing_mode="freedraw",
-        key="canvas",
-    )
-    tanda_path = None
-    if canvas_result.image_data is not None:
-        from PIL import Image
-        image = Image.fromarray((canvas_result.image_data).astype('uint8'))
-        tanda_path = f"tanda_tangan_{user}.png"
-        image.save(tanda_path)
+# ---------- Tampilkan dan Hitung F0 ----------
+df_input = pd.DataFrame(data)
+st.subheader("Data Pantauan")
+st.dataframe(df_input)
 
-    simpan_metadata(jumlah_awal, b1, b2, b3, jumlah_akhir, user, tanda_path)
+if st.button("Hitung & Simpan"):
+    df_hasil, total_f0 = calculate_f0(df_input)
+    st.success(f"Total Nilai F0: {round(total_f0,2)} menit")
 
-    # Buat PDF
-    pdf = PDF()
-    pdf.laporan(df_hasil, total_f0, {
-        "jumlah_awal": jumlah_awal,
-        "b1": b1, "b2": b2, "b3": b3,
-        "jumlah_akhir": jumlah_akhir,
-        "user": user
-    }, tanda_path)
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("INSERT INTO hasil_retort (pelanggan, jumlah_awal, basket1, basket2, basket3, jumlah_akhir, total_f0, tanggal, data_pantauan) VALUES (?,?,?,?,?,?,?,?,?)",
+              (pelanggan, jumlah_awal, basket1, basket2, basket3, jumlah_akhir, total_f0, tanggal.strftime("%Y-%m-%d"), df_input.to_json()))
+    conn.commit()
+    conn.close()
 
-    output_path = f"laporan_retort_{datetime.now().strftime('%d%m%Y_%H%M%S')}.pdf"
-    pdf.output(output_path)
+    path_pdf = generate_pdf(pelanggan, jumlah_awal, basket1, basket2, basket3, jumlah_akhir, df_hasil, total_f0)
+    with open(path_pdf, "rb") as f:
+        st.download_button("📥 Unduh Laporan PDF", f, file_name=path_pdf, mime="application/pdf")
 
-    with open(output_path, "rb") as f:
-        st.download_button("📄 Unduh Laporan PDF", f, file_name=output_path)
-
-    st.success("Data disimpan dan PDF berhasil dibuat!")
+# ---------- Inisialisasi DB ----------
+init_db()
