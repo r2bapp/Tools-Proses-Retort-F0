@@ -6,6 +6,88 @@ from fpdf import FPDF
 import io
 import datetime
 from streamlit_drawable_canvas import st_canvas
+from PIL import Image
+import base64
+import os
+
+# ----------------------------
+# KONFIGURASI
+# ----------------------------
+DB_PATH = "data_retort.db"
+LOGO_PATH = "R2B.png"
+F0_REFERENCE_TEMP = 121.1
+Z_VALUE = 10
+AUTHORIZED_USERS = ["bagoes", "dimas", "iwan"]
+
+# ----------------------------
+# HALAMAN LOGIN
+# ----------------------------
+def show_login():
+    if "logged_in" not in st.session_state:
+        st.session_state.logged_in = False
+
+    if not st.session_state.logged_in:
+        st.image(LOGO_PATH, width=200)
+        st.title("Login Aplikasi Proses Retort R2B")
+        username = st.text_input("Masukkan Nama (bagoes / dimas / iwan)")
+
+        if st.button("Login"):
+            if username.strip().lower() in AUTHORIZED_USERS:
+                st.session_state.logged_in = True
+                st.success(f"Selamat datang, {username.capitalize()}! Anda berhasil login.")
+                st.experimental_rerun()
+            else:
+                st.error("Nama tidak dikenal. Silakan coba lagi.")
+        return False
+    return True
+
+if not show_login():
+    st.stop()
+
+# ----------------------------
+# INISIALISASI DATABASE
+# ----------------------------
+def init_db():
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS pelanggan (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nama TEXT, tanggal TEXT, sesi TEXT, batch TEXT,
+            total_waktu INTEGER, jenis_produk TEXT,
+            jumlah_awal INTEGER, jumlah_akhir INTEGER,
+            basket1 INTEGER, basket2 INTEGER, basket3 INTEGER,
+            petugas TEXT, paraf TEXT
+        )
+    """)
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS f0_data (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            pelanggan_id INTEGER,
+            menit INTEGER, suhu REAL, tekanan REAL, keterangan TEXT,
+            f0 REAL
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+init_db()
+
+# ----------------------------
+# SIMPAN DATA PELANGGAN
+# ----------------------------
+def save_data_pelanggan(data):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("""
+        INSERT INTO pelanggan (nama, tanggal, sesi, batch, total_waktu,
+        jenis_produk, jumlah_awal, jumlah_akhir, basket1, basket2, basket3, petugas, paraf)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, data)
+    conn.commit()
+    pelanggan_id = c.lastrowid
+    conn.close()
+    return pelanggan_id
 
 # Fungsi hitung F₀
 def calculate_f0(temps, T_ref=121.1, z=10):
