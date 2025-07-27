@@ -1,9 +1,6 @@
-streamlit>=1.32.0
-pandas>=2.2.0
-fpdf>=1.7.2
-matplotlib>=3.8.0
-Pillow>=10.0.0
-numpy>=1.26.0
-google-auth>=2.22.0
-google-auth-oauthlib>=1.1.0
-google-api-python-client>=2.99.0
+streamlit
+matplotlib
+numpy
+pandas
+fpdf
+streamlit-drawable-canvas
