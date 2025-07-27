@@ -102,28 +102,6 @@ def save_f0_data(pelanggan_id, df):
     conn.commit()
     conn.close()
 
-# Halaman: Perhitungan F0
-
-def calculate_f0(temps, T_ref=121.1, z=10):
-    f0_values = []
-    for T in temps:
-        if T < 90:
-            f0_values.append(0)
-        else:
-            f0_values.append(10 ** ((T - T_ref) / z))
-    return np.cumsum(f0_values)
-
-def check_minimum_holding_time(temps, min_temp=121.1, min_duration=3):
-    holding_minutes = 0
-    for t in temps:
-        if t >= min_temp:
-            holding_minutes += 1
-        else:
-            holding_minutes = 0
-        if holding_minutes >= min_duration:
-            return True
-    return False
-
 def hasil_f0_page():
     st.title("📈 Hasil dan Validasi F0")
 
@@ -181,9 +159,11 @@ def hasil_f0_page():
         pdf.set_font("Arial", size=8)
         pdf.cell(200, 10, "Proses retort dilakukan oleh Rumah Retort Bersama", ln=True, align='C')
 
-        # Download
+        # Fix bagian output PDF ke BytesIO
         pdf_output = io.BytesIO()
-        pdf.output(pdf_output)
+        pdf_bytes = pdf.output(dest='S').encode('latin-1')
+        pdf_output.write(pdf_bytes)
+
         st.download_button(
             label="📄 Simpan PDF",
             data=pdf_output.getvalue(),
