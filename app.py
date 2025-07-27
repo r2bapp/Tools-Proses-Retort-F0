@@ -1,5 +1,3 @@
-TOOL MENGHITUNG FO MANUAL
-
 from fpdf import FPDF
 from io import BytesIO
 import streamlit as st
