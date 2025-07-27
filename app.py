@@ -7,7 +7,7 @@ from fpdf import FPDF
 import io
 
 # Database setup
-conn = sqlite3.connect("retort_data.db", check_same_thread=False)
+conn = sqlite3.connect(check_same_thread=False)
 cursor = conn.cursor()
 
 # Buat tabel
