@@ -6,25 +6,9 @@ import sqlite3
 from fpdf import FPDF
 import io
 
-def create_table():
-    conn = sqlite3.connect("data_retort.db")
-    cursor = conn.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS pelanggan (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nama TEXT,
-            tanggal TEXT,
-            sesi TEXT,
-            batch TEXT,
-            waktu_total INTEGER,
-            jenis_produk TEXT,
-            jumlah_awal INTEGER,
-            petugas TEXT,
-            paraf TEXT
-        )
-    ''')
-    conn.commit()
-    conn.close()
+# Database setup
+conn = sqlite3.connect("retort_data.db", check_same_thread=False)
+cursor = conn.cursor()
 
 # Buat tabel
 cursor.execute('''CREATE TABLE IF NOT EXISTS users (
