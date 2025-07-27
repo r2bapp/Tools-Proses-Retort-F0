@@ -7,42 +7,15 @@ import io
 import datetime
 from streamlit_drawable_canvas import st_canvas
 from PIL import Image
-import base64
+import sqlite3
 import os
 
 # ----------------------------
 # KONFIGURASI
 # ----------------------------
 DB_PATH = "data_retort.db"
-LOGO_PATH = "R2B.png"
 F0_REFERENCE_TEMP = 121.1
 Z_VALUE = 10
-AUTHORIZED_USERS = ["bagoes", "dimas", "iwan"]
-
-# ----------------------------
-# HALAMAN LOGIN
-# ----------------------------
-def show_login():
-    if "logged_in" not in st.session_state:
-        st.session_state.logged_in = False
-
-    if not st.session_state.logged_in:
-        st.image(LOGO_PATH, width=200)
-        st.title("Login Aplikasi Proses Retort R2B")
-        username = st.text_input("Masukkan Nama (bagoes / dimas / iwan)")
-
-        if st.button("Login"):
-            if username.strip().lower() in AUTHORIZED_USERS:
-                st.session_state.logged_in = True
-                st.success(f"Selamat datang, {username.capitalize()}! Anda berhasil login.")
-                st.experimental_rerun()
-            else:
-                st.error("Nama tidak dikenal. Silakan coba lagi.")
-        return False
-    return True
-
-if not show_login():
-    st.stop()
 
 # ----------------------------
 # INISIALISASI DATABASE
@@ -74,23 +47,9 @@ def init_db():
 init_db()
 
 # ----------------------------
-# SIMPAN DATA PELANGGAN
-# ----------------------------
-def save_data_pelanggan(data):
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute("""
-        INSERT INTO pelanggan (nama, tanggal, sesi, batch, total_waktu,
-        jenis_produk, jumlah_awal, jumlah_akhir, basket1, basket2, basket3, petugas, paraf)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, data)
-    conn.commit()
-    pelanggan_id = c.lastrowid
-    conn.close()
-    return pelanggan_id
-
 # Fungsi hitung F₀
-def calculate_f0(temps, T_ref=121.1, z=10):
+# ----------------------------
+def calculate_f0(temps, T_ref=F0_REFERENCE_TEMP, z=Z_VALUE):
     f0_values = []
     for T in temps:
         if T < 90:
@@ -100,7 +59,7 @@ def calculate_f0(temps, T_ref=121.1, z=10):
     return np.cumsum(f0_values)
 
 # Fungsi cek suhu minimal 121.1°C selama ≥3 menit
-def check_minimum_holding_time(temps, min_temp=121.1, min_duration=3):
+def check_minimum_holding_time(temps, min_temp=F0_REFERENCE_TEMP, min_duration=3):
     holding_minutes = 0
     for t in temps:
         if t >= min_temp:
@@ -111,6 +70,9 @@ def check_minimum_holding_time(temps, min_temp=121.1, min_duration=3):
             return True
     return False
 
+# ----------------------------
+# HALAMAN HASIL F0
+# ----------------------------
 def hasil_f0_page():
     st.title("📈 Hasil dan Validasi F0")
 
