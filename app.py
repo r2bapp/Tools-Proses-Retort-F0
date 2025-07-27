@@ -18,6 +18,9 @@ def init_db():
     c.execute('''CREATE TABLE IF NOT EXISTS hasil_retort (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         pelanggan TEXT,
+        nama_umkm TEXT
+        nama_produk TEXT
+        nomor_kontak TEXT
         jumlah_awal INTEGER,
         basket1 INTEGER,
         basket2 INTEGER,
@@ -151,7 +154,7 @@ if st.button("Hitung & Simpan"):
     conn.commit()
     conn.close()
 
-    path_pdf = generate_pdf(pelanggan, nama_umkm, nama_produk, nomor_kontak, jumlah_awal, basket1, basket2, basket3, jumlah_akhir, df_hasil, total_f0)
+    path_pdf = generate_pdf(pelanggan, nama_umkm, nama_produk, str(nomor_kontak), jumlah_awal, basket1, basket2, basket3, jumlah_akhir, df_hasil, total_f0)
     with open(path_pdf, "rb") as f:
         st.download_button("📥 Unduh Laporan PDF", f, file_name=path_pdf, mime="application/pdf")
 
