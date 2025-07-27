@@ -7,7 +7,6 @@ from fpdf import FPDF
 import io
 
 # Database setup
-def create_table():
     conn = sqlite3.connect("data_retort.db")
     cursor = conn.cursor()
     cursor.execute('''
