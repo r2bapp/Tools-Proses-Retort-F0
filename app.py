@@ -45,7 +45,7 @@ def calculate_f0(df):
     return df, df['F0 Akumulatif'].iloc[-1] if not df.empty else 0
 
 # ---------- Fungsi PDF ----------
-def generate_pdf(pelanggan, jumlah_awal, basket1, basket2, basket3, jumlah_akhir, df, total_f0):
+def generate_pdf(pelanggan, nama_umkm, nama_produk, nomor_kontak, jumlah_awal, basket1, basket2, basket3, jumlah_akhir, df, total_f0):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", "B", 14)
@@ -54,6 +54,9 @@ def generate_pdf(pelanggan, jumlah_awal, basket1, basket2, basket3, jumlah_akhir
     pdf.set_font("Arial", "", 12)
     pdf.cell(200, 10, f"Tanggal: {datetime.today().strftime('%d-%m-%Y')}", ln=True)
     pdf.cell(200, 10, f"Nama Pelanggan: {pelanggan}", ln=True)
+    pdf.cell(200, 10, f"Nama UMKM : {nama_umkm}", ln=True)
+    pdf.cell(200, 10, f"Nama Produk : {nama_produk}", ln=True)
+    pdf.cell(200, 10, f"Nomor Kontak : {nomor_kontak}", ln=True)
     pdf.cell(200, 10, f"Jumlah Awal Produk: {jumlah_awal}", ln=True)
     pdf.cell(200, 10, f"Basket 1: {basket1} | Basket 2: {basket2} | Basket 3: {basket3}", ln=True)
     pdf.cell(200, 10, f"Jumlah Produk Akhir: {jumlah_akhir}", ln=True)
