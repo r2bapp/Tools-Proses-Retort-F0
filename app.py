@@ -1,166 +1,153 @@
 import streamlit as st
-from streamlit_drawable_canvas import st_canvas
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-from fpdf import FPDF
-from datetime import datetime, time, timedelta
-import io
 import sqlite3
+from datetime import datetime, timedelta, time
+from fpdf import FPDF
 import os
 
-# === DATABASE ===
-DB_PATH = "retort_data.db"
+# ---------- Konstanta ----------
+T_REF = 121.1  # Suhu referensi (°C)
+Z = 10  # Faktor z (°C)
+DB_PATH = "data_retort.db"
 
+# ---------- Inisialisasi Database ----------
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS retort_data (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            tanggal TEXT,
-            no_hp TEXT,
-            nama_umkm TEXT,
-            nama_produk TEXT,
-            jumlah_awal INTEGER,
-            basket1 INTEGER,
-            basket2 INTEGER,
-            basket3 INTEGER,
-            jumlah_akhir INTEGER,
-            suhu_data TEXT,
-            total_f0 REAL,
-            berhasil INTEGER,
-            waktu_input TEXT
-        )
-    """)
+    c.execute('''CREATE TABLE IF NOT EXISTS hasil_retort (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        pelanggan TEXT,
+        jumlah_awal INTEGER,
+        basket1 INTEGER,
+        basket2 INTEGER,
+        basket3 INTEGER,
+        jumlah_akhir INTEGER,
+        total_f0 REAL,
+        tanggal TEXT,
+        data_pantauan TEXT
+    )''')
     conn.commit()
     conn.close()
 
-init_db()
-
-# === FUNGSI HITUNG F0 ===
-def calculate_f0(temps, T_ref=121.1, z=10):
+# ---------- Fungsi Perhitungan F0 ----------
+def calculate_f0(df):
     f0_values = []
-    for T in temps:
-        if T < 90:
-            f0_values.append(0)
+    for index, row in df.iterrows():
+        T = row['Suhu (°C)']
+        if T > 90:
+            f = 10 ** ((T - T_REF) / Z)
         else:
-            f0_values.append(10 ** ((T - T_ref) / z))
-    return np.cumsum(f0_values)
+            f = 0
+        f0_values.append(f)
+    df['F0'] = f0_values
+    df['F0 Akumulatif'] = np.cumsum(f0_values)
+    return df, df['F0 Akumulatif'].iloc[-1] if not df.empty else 0
 
-def check_minimum_holding_time(temps, min_temp=121.1, min_duration=3):
-    holding_minutes = 0
-    for t in temps:
-        if t >= min_temp:
-            holding_minutes += 1
-        else:
-            holding_minutes = 0
-        if holding_minutes >= min_duration:
-            return True
-    return False
-
-# === GENERATE PDF DENGAN GRAFIK & FOOTNOTE ===
-def generate_pdf(data, total_f0, success, f0_plot):
+# ---------- Fungsi PDF ----------
+def generate_pdf(pelanggan, jumlah_awal, basket1, basket2, basket3, jumlah_akhir, df, total_f0):
     pdf = FPDF()
     pdf.add_page()
-    pdf.set_font("Arial", size=12)
+    pdf.set_font("Arial", "B", 14)
+    pdf.cell(200, 10, "Laporan Proses Retort", ln=True, align="C")
 
-    pdf.cell(200, 10, txt="Laporan Hasil Proses Retort", ln=True, align="C")
-    pdf.cell(200, 10, txt=datetime.now().strftime("%Y-%m-%d %H:%M"), ln=True, align="C")
+    pdf.set_font("Arial", "", 12)
+    pdf.cell(200, 10, f"Tanggal: {datetime.today().strftime('%d-%m-%Y')}", ln=True)
+    pdf.cell(200, 10, f"Nama Pelanggan: {pelanggan}", ln=True)
+    pdf.cell(200, 10, f"Jumlah Awal Produk: {jumlah_awal}", ln=True)
+    pdf.cell(200, 10, f"Basket 1: {basket1} | Basket 2: {basket2} | Basket 3: {basket3}", ln=True)
+    pdf.cell(200, 10, f"Jumlah Produk Akhir: {jumlah_akhir}", ln=True)
+    pdf.cell(200, 10, f"Total F0: {round(total_f0, 2)} menit", ln=True)
+
+    pdf.set_font("Arial", "B", 12)
+    pdf.cell(200, 10, "\nData Pantauan Retort", ln=True)
+
+    pdf.set_font("Arial", size=10)
+    col_width = 48
+    pdf.cell(col_width, 10, "Waktu", 1)
+    pdf.cell(col_width, 10, "Suhu (°C)", 1)
+    pdf.cell(col_width, 10, "Tekanan", 1)
+    pdf.cell(col_width, 10, "Keterangan", 1)
+    pdf.ln()
+
+    for _, row in df.iterrows():
+        pdf.cell(col_width, 10, str(row['Waktu']), 1)
+        pdf.cell(col_width, 10, str(row['Suhu (°C)']), 1)
+        pdf.cell(col_width, 10, str(row['Tekanan (psi)']), 1)
+        pdf.cell(col_width, 10, str(row['Keterangan']), 1)
+        pdf.ln()
+
     pdf.ln(5)
+    pdf.set_font("Arial", "I", 10)
+    pdf.cell(200, 10, "Diproses oleh Rumah Retort Bersama", ln=True, align="C")
 
-    for key, val in data.items():
-        pdf.cell(100, 10, txt=f"{key}: {val}", ln=True)
+    output_path = f"laporan_retort_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+    pdf.output(output_path)
+    return output_path
 
-    pdf.cell(100, 10, txt=f"Total F₀: {total_f0:.2f}", ln=True)
-    pdf.cell(100, 10, txt=f"Validasi Suhu ≥121.1°C selama ≥3 menit: {'✅' if success else '❌'}", ln=True)
+# ---------- Aplikasi Streamlit ----------
+st.set_page_config(page_title="Proses Retort R2B", layout="wide")
+st.title("📊 Tools Proses Retort & F0 | Rumah Retort Bersama")
 
-    pdf.ln(5)
+# ---------- Login ----------
+username = st.text_input("Masukkan Nama (bagoes, iwan, dimas):")
+if username.lower() not in ["bagoes", "iwan", "dimas"]:
+    st.warning("Hanya user yang diizinkan yang bisa masuk.")
+    st.stop()
 
-    # Simpan grafik ke buffer
-    buf = io.BytesIO()
-    f0_plot.savefig(buf, format='PNG')
-    buf.seek(0)
-    pdf.image(buf, x=10, y=None, w=180)
+# ---------- Input Data ----------
+st.header("Input Data Pelanggan dan Proses")
+pelanggan = st.text_input("Nama Pelanggan")
+tanggal = st.date_input("Tanggal Proses")
+jumlah_awal = st.number_input("Jumlah Awal Produk", min_value=0)
+basket1 = st.number_input("Jumlah Basket 1", min_value=0)
+basket2 = st.number_input("Jumlah Basket 2", min_value=0)
+basket3 = st.number_input("Jumlah Basket 3", min_value=0)
 
-    pdf.ln(5)
-    pdf.set_font("Arial", style='I', size=10)
-    pdf.multi_cell(0, 10, txt="Proses Retort Dilakukan Oleh Rumah Retort Bersama", align="C")
+st.subheader("Pantauan Suhu, Tekanan dan Keterangan (Per Menit)")
+data = {
+    "Waktu": [],
+    "Suhu (°C)": [],
+    "Tekanan (psi)": [],
+    "Keterangan": []
+}
 
-    return pdf.output(dest='S').encode('latin1')
+for i in range(10):
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        waktu = st.time_input(f"Waktu {i+1}", key=f"waktu_{i}")
+    with col2:
+        suhu = st.number_input(f"Suhu °C {i+1}", key=f"suhu_{i}")
+    with col3:
+        tekanan = st.number_input(f"Tekanan {i+1}", key=f"tekanan_{i}")
+    with col4:
+        ket = st.text_input(f"Keterangan {i+1}", key=f"ket_{i}")
+    data['Waktu'].append(waktu.strftime("%H:%M"))
+    data['Suhu (°C)'].append(suhu)
+    data['Tekanan (psi)'].append(tekanan)
+    data['Keterangan'].append(ket)
 
-# === HALAMAN UTAMA ===
-st.set_page_config(page_title="Retort F0 R2B", layout="centered")
-st.title("🚀 Kalkulator F₀ Proses Retort – Rumah Retort Bersama")
+jumlah_akhir = st.number_input("Jumlah Produk Akhir", min_value=0)
 
-with st.form("retort_form"):
-    st.subheader("📋 Input Data Proses")
-    tanggal = st.date_input("Tanggal Proses", value=datetime.today())
-    no_hp = st.text_input("Nomor HP")
-    nama_umkm = st.text_input("Nama UMKM")
-    nama_produk = st.text_input("Nama Produk")
+# ---------- Tampilkan dan Hitung F0 ----------
+df_input = pd.DataFrame(data)
+st.subheader("Data Pantauan")
+st.dataframe(df_input)
 
-    jumlah_awal = st.number_input("Jumlah Produk Awal", min_value=0)
-    basket1 = st.number_input("Jumlah Basket 1", min_value=0)
-    basket2 = st.number_input("Jumlah Basket 2", min_value=0)
-    basket3 = st.number_input("Jumlah Basket 3", min_value=0)
+if st.button("Hitung & Simpan"):
+    df_hasil, total_f0 = calculate_f0(df_input)
+    st.success(f"Total Nilai F0: {round(total_f0,2)} menit")
 
-    st.subheader("🌡️ Suhu Proses per Menit")
-    suhu_input = st.text_area("Masukkan data suhu (pisahkan dengan koma)", placeholder="121.5, 122.1, 123.0, ...")
-    
-    jumlah_akhir = st.number_input("Jumlah Produk Akhir", min_value=0)
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("INSERT INTO hasil_retort (pelanggan, jumlah_awal, basket1, basket2, basket3, jumlah_akhir, total_f0, tanggal, data_pantauan) VALUES (?,?,?,?,?,?,?,?,?)",
+              (pelanggan, jumlah_awal, basket1, basket2, basket3, jumlah_akhir, total_f0, tanggal.strftime("%Y-%m-%d"), df_input.to_json()))
+    conn.commit()
+    conn.close()
 
-    submitted = st.form_submit_button("Hitung F₀")
+    path_pdf = generate_pdf(pelanggan, jumlah_awal, basket1, basket2, basket3, jumlah_akhir, df_hasil, total_f0)
+    with open(path_pdf, "rb") as f:
+        st.download_button("📥 Unduh Laporan PDF", f, file_name=path_pdf, mime="application/pdf")
 
-if submitted:
-    try:
-        temps = list(map(float, suhu_input.split(",")))
-        temps = [round(t, 2) for t in temps]
-
-        total_f0_array = calculate_f0(temps)
-        total_f0 = total_f0_array[-1] if len(total_f0_array) else 0
-        success = check_minimum_holding_time(temps)
-
-        st.success(f"✅ Total F₀: {total_f0:.2f}")
-        st.info(f"Validasi Suhu ≥121.1°C selama ≥3 menit: {'✅ Ya' if success else '❌ Tidak'}")
-
-        # Grafik
-        fig, ax = plt.subplots()
-        ax.plot(range(len(total_f0_array)), total_f0_array, marker='o')
-        ax.set_title("Grafik Nilai F₀")
-        ax.set_xlabel("Menit ke-")
-        ax.set_ylabel("F₀")
-        st.pyplot(fig)
-
-        # Simpan ke database
-        conn = sqlite3.connect(DB_PATH)
-        c = conn.cursor()
-        c.execute("""
-            INSERT INTO retort_data (tanggal, no_hp, nama_umkm, nama_produk, jumlah_awal, basket1, basket2, basket3, jumlah_akhir, suhu_data, total_f0, berhasil, waktu_input)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            str(tanggal), no_hp, nama_umkm, nama_produk, jumlah_awal, basket1, basket2, basket3,
-            jumlah_akhir, ','.join(map(str, temps)), total_f0, int(success),
-            datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        ))
-        conn.commit()
-        conn.close()
-
-        # PDF download
-        data_dict = {
-            "Tanggal": str(tanggal),
-            "Nomor HP": no_hp,
-            "Nama UMKM": nama_umkm,
-            "Nama Produk": nama_produk,
-            "Jumlah Awal": jumlah_awal,
-            "Basket 1": basket1,
-            "Basket 2": basket2,
-            "Basket 3": basket3,
-            "Jumlah Akhir": jumlah_akhir
-        }
-
-        pdf_bytes = generate_pdf(data_dict, total_f0, success, fig)
-        st.download_button("📥 Unduh PDF Laporan", data=pdf_bytes, file_name="laporan_retort.pdf", mime="application/pdf")
-
-    except Exception as e:
-        st.error(f"Terjadi kesalahan saat memproses data: {e}")
+# ---------- Inisialisasi DB ----------
+init_db()
