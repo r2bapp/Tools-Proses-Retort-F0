@@ -74,45 +74,46 @@ def calculate_f0(df):
 def generate_pdf(data_input, df_f0, total_f0):
     pdf = FPDF()
     pdf.add_page()
-    pdf.set_font("Arial", "B", 12)
+    pdf.set_font("Arial", size=12)
 
-    pdf.cell(0, 10, "Laporan Hasil Proses Retort", ln=1, align="C")
-    pdf.set_font("Arial", "", 11)
-    for key, value in data_input.items():
-        pdf.cell(0, 10, f"{key}: {value}", ln=1)
+    pdf.cell(200, 10, txt="Laporan Proses Retort", ln=True, align='C')
+    pdf.cell(200, 10, txt=f"Tanggal Proses: {data_input['tanggal'].strftime('%Y-%m-%d')}", ln=True, align='C')
+    pdf.ln(10)
 
+    # Informasi pelanggan
+    pdf.cell(200, 10, txt=f"Pelanggan: {data_input['pelanggan']}", ln=True)
+    pdf.cell(200, 10, txt=f"UMKM: {data_input['nama_umkm']} | Produk: {data_input['nama_produk']}", ln=True)
+    pdf.cell(200, 10, txt=f"No. HP: {data_input['nomor_kontak']}", ln=True)
+    pdf.cell(200, 10, txt=f"Jumlah Awal: {data_input['jumlah_awal']} | Basket1: {data_input['basket1']} | Basket2: {data_input['basket2']} | Basket3: {data_input['basket3']} | Jumlah Akhir: {data_input['jumlah_akhir']}", ln=True)
     pdf.ln(5)
-    pdf.set_font("Arial", "B", 11)
-    pdf.cell(0, 10, "Grafik F0", ln=1)
 
-    # Simpan grafik sementara
-    fig, ax = plt.subplots()
-    ax.plot(df_f0["Menit ke-"], df_f0["F0 Akumulatif"], marker='o')
-    ax.set_title("Grafik F0 Akumulatif")
-    ax.set_xlabel("Menit ke-")
-    ax.set_ylabel("F0 Akumulatif")
-    img_path = "grafik_f0_temp.png"
-    fig.savefig(img_path)
-    pdf.image(img_path, x=10, y=None, w=180)
-    os.remove(img_path)
+    # Tabel data F0
+    pdf.set_font("Arial", size=10)
+    pdf.cell(30, 10, "Menit", 1)
+    pdf.cell(30, 10, "Suhu", 1)
+    pdf.cell(30, 10, "Tekanan", 1)
+    pdf.cell(30, 10, "F0", 1)
+    pdf.ln()
+
+    for _, row in df_f0.iterrows():
+        pdf.cell(30, 10, str(row['Menit']), 1)
+        pdf.cell(30, 10, str(row['Suhu']), 1)
+        pdf.cell(30, 10, str(row['Tekanan']), 1)
+        pdf.cell(30, 10, f"{row['F0']:.2f}", 1)
+        pdf.ln()
 
     pdf.ln(10)
-    pdf.set_font("Arial", "B", 11)
-    pdf.cell(0, 10, "Data Pantauan", ln=1)
+    pdf.set_font("Arial", style='B')
+    pdf.cell(200, 10, txt=f"Total Nilai F0: {total_f0:.2f}", ln=True)
 
-    pdf.set_font("Arial", "", 10)
-    for index, row in df_f0.iterrows():
-        waktu = row["Waktu"]
-        suhu = row["Suhu (°C)"]
-        tekanan = row["Tekanan (psi)"]
-        keterangan = row["Keterangan"]
-        pdf.cell(0, 8, f"{waktu} | {suhu}°C | {tekanan} psi | {keterangan}", ln=1)
+    pdf.set_font("Arial", size=9)
+    pdf.cell(200, 10, txt="*Diproses oleh Rumah Retort Bersama", ln=True, align='C')
 
-    pdf.ln(5)
-    pdf.set_font("Arial", "I", 9)
-    pdf.cell(0, 10, "Proses Retort Dilakukan Oleh Rumah Retort Bersama", ln=1, align="C")
-
-    return pdf.output(dest='S').encode('latin-1')  # ✅ hanya jika Streamlit membutuhkan byte
+    # Output ke Streamlit
+    pdf_output = io.BytesIO()
+    pdf.output(pdf_output)
+    pdf_output.seek(0)
+    return pdf_output.read()
 
 # -------------------- UI Input --------------------
 st.title("📦 Alat Hitung F0 Proses Retort | Rumah Retort Bersama")
