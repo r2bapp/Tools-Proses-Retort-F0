@@ -5,51 +5,9 @@ import matplotlib.pyplot as plt
 from fpdf import FPDF
 import io
 import datetime
-from streamlit_drawable_canvas import st_canvas
-from PIL import Image
-import sqlite3
-import os
 
-# ----------------------------
-# KONFIGURASI
-# ----------------------------
-DB_PATH = "data_retort.db"
-F0_REFERENCE_TEMP = 121.1
-Z_VALUE = 10
-
-# ----------------------------
-# INISIALISASI DATABASE
-# ----------------------------
-def init_db():
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS pelanggan (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nama TEXT, tanggal TEXT, sesi TEXT, batch TEXT,
-            total_waktu INTEGER, jenis_produk TEXT,
-            jumlah_awal INTEGER, jumlah_akhir INTEGER,
-            basket1 INTEGER, basket2 INTEGER, basket3 INTEGER,
-            petugas TEXT, paraf TEXT
-        )
-    """)
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS f0_data (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            pelanggan_id INTEGER,
-            menit INTEGER, suhu REAL, tekanan REAL, keterangan TEXT,
-            f0 REAL
-        )
-    """)
-    conn.commit()
-    conn.close()
-
-init_db()
-
-# ----------------------------
 # Fungsi hitung F₀
-# ----------------------------
-def calculate_f0(temps, T_ref=F0_REFERENCE_TEMP, z=Z_VALUE):
+def calculate_f0(temps, T_ref=121.1, z=10):
     f0_values = []
     for T in temps:
         if T < 90:
@@ -59,7 +17,7 @@ def calculate_f0(temps, T_ref=F0_REFERENCE_TEMP, z=Z_VALUE):
     return np.cumsum(f0_values)
 
 # Fungsi cek suhu minimal 121.1°C selama ≥3 menit
-def check_minimum_holding_time(temps, min_temp=F0_REFERENCE_TEMP, min_duration=3):
+def check_minimum_holding_time(temps, min_temp=121.1, min_duration=3):
     holding_minutes = 0
     for t in temps:
         if t >= min_temp:
@@ -70,9 +28,6 @@ def check_minimum_holding_time(temps, min_temp=F0_REFERENCE_TEMP, min_duration=3
             return True
     return False
 
-# ----------------------------
-# HALAMAN HASIL F0
-# ----------------------------
 def hasil_f0_page():
     st.title("📈 Hasil dan Validasi F0")
 
@@ -104,18 +59,6 @@ def hasil_f0_page():
     ax2.plot(df['menit'], df['F0'], color='blue', label='F₀')
     ax2.set_ylabel("F₀", color='blue')
     st.pyplot(fig)
-
-    st.subheader("✍️ Paraf Manual")
-    canvas_result = st_canvas(
-        fill_color="rgba(255, 255, 255, 0)",
-        stroke_width=2,
-        stroke_color="#000000",
-        background_color="#ffffff",
-        height=150,
-        width=400,
-        drawing_mode="freedraw",
-        key="paraf_canvas"
-    )
 
     st.subheader("📅 Unduh Laporan PDF")
     if st.button("Unduh PDF"):
