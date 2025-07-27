@@ -7,8 +7,10 @@ from fpdf import FPDF
 import io
 
 # Database setup
-conn = sqlite3.connect("retort_data.db", check_same_thread=False)
-cursor = conn.cursor()
+def create_table():
+    conn = sqlite3.connect("data_retort.db")
+    cursor = conn.cursor()
+    cursor.execute('''
 
 # Buat tabel
 cursor.execute('''CREATE TABLE IF NOT EXISTS users (
