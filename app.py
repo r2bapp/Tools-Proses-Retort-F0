@@ -83,7 +83,7 @@ def generate_pdf(data_input, df, total_f0):
 
 # --- STREAMLIT UI ---
 st.set_page_config(layout="wide")
-st.title("🧪 Tools Proses Retort - F0 Calculator")
+st.title("Tools Proses Retort - F0 Calculator |by Rumah Retort Bersama")
 
 with st.form("input_form"):
     st.subheader("📋 Data Proses Retort")
